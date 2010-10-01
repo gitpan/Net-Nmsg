@@ -1,0 +1,8 @@
+Revision history for Net::Nmsg
+
+0.02  Thu Aug 12 18:11:00 EDT 2010
+    - pcap fix
+    - added more examples
+
+0.01  Mon Jun 21 15:32:47 EDT 2010
+    - initial release
