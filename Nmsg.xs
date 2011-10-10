@@ -68,6 +68,8 @@ typedef union {
     uint32_t    u32;
     int32_t     i32;
     unsigned    en;
+    double      dbl;
+    bool        boo;
 } nmsg_field_val_u;
 
 #include <signal.h>
@@ -232,6 +234,10 @@ _xs_field_to_sv(pTHX_ void *data, size_t len, nmsg_msgmod_field_type type) {
     case nmsg_msgmod_ft_uint32:
         // fprintf(stderr, "sv_setuv %d %d\n", len, *(unsigned *)data);
         return newSVuv(*(unsigned *)data);
+    case nmsg_msgmod_ft_double:
+        return newSVnv(*(double *)data);
+    case nmsg_msgmod_ft_bool:
+        return boolSV(newSViv(*(int *)data));
     case nmsg_msgmod_ft_string:
     case nmsg_msgmod_ft_mlstring:
         // len includes trailing null
@@ -275,6 +281,12 @@ _xs_sv_to_field(pTHX_ SV *sv, nmsg_msgmod_field_type type,
         data->en = (unsigned)SvUV(sv);
         *len = sizeof(unsigned);
         //fprintf(stderr, "sv to uv_enum %d len(%d)\n", data->en, (int)*len);
+        break;
+    case nmsg_msgmod_ft_double:
+        data->dbl = (double)SvNV(sv);
+        break;
+    case nmsg_msgmod_ft_bool:
+        data->boo = (bool)SvTRUE(sv);
         break;
     case nmsg_msgmod_ft_string:
     case nmsg_msgmod_ft_mlstring:
@@ -1130,6 +1142,17 @@ get_time(THIS)
     nmsg_message_get_time(THIS, &ts);
     mXPUSHi(ts.tv_sec);
     mXPUSHi(ts.tv_nsec);
+
+void
+get_num_fields(THIS)
+    Net::Nmsg::XS::msg  THIS
+    PREINIT:
+    nmsg_res  res;
+    size_t    len;
+    PPCODE:
+    res = nmsg_message_get_num_fields(THIS, &len);
+    if (res == nmsg_res_success)
+        mXPUSHu(len);
 
 void
 get_field(THIS, field, v_idx = 0)

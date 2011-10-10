@@ -1,5 +1,8 @@
 Revision history for Net::Nmsg
 
+0.06  Mon Oct 10 18:00:06 EDT 2011
+    - added typemap support for double and bool
+
 0.05  Fri Oct  7 18:07:18 EDT 2011
     - fixed some 64 bit typemap issues
     - fixed thread/lock issue in message_to_pres()
