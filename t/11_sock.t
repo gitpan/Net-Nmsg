@@ -1,8 +1,8 @@
-use Test::More tests => 76;
-
 use FindBin;
 use lib $FindBin::Bin;
 use nmsgtest;
+
+use Test::More tests => 76;
 
 use Net::Nmsg::Util qw( :io :sniff );
 

@@ -4,6 +4,8 @@ MANIFEST
 ppport.h
 typemap
 README
+LICENSE-OPENSOURCE.txt
+GPL.txt
 
 Nmsg.xs
 

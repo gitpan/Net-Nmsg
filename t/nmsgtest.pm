@@ -1,5 +1,12 @@
 package nmsgtest;
 
+use FindBin;
+
+BEGIN {
+  eval { require Test::More };
+  $@ && push(@INC, "$FindBin::Bin/../compat");
+}
+
 use Test::More;
 
 use strict;
@@ -31,8 +38,6 @@ use constant IO_CLASS     => 'Net::Nmsg::IO';
 use constant OUTPUT_CLASS => 'Net::Nmsg::Output';
 use constant INPUT_CLASS  => 'Net::Nmsg::Input';
 use constant MSG_CLASS    => 'Net::Nmsg::Msg';
-
-use FindBin;
 
 my %paths;
 

@@ -1,4 +1,4 @@
-# Copyright (C) 2010 by Carnegie Mellon University
+# Copyright (C) 2010-2011 by Carnegie Mellon University
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, as published by
@@ -29,7 +29,7 @@ use base qw( Exporter DynaLoader );
 sub dl_load_flags { 0x01 } # global option
 
 BEGIN {
-  $VERSION = '0.04';
+  $VERSION = '0.05';
   bootstrap Net::Nmsg $VERSION;
 }
 
@@ -369,7 +369,7 @@ Matthew Sisk, E<lt>sisk@cert.orgE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2010 by Carnegie Mellon University
+Copyright (C) 2010-2011 by Carnegie Mellon University
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, as published by

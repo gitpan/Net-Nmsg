@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               Net-Nmsg
-version:            0.04
+version:            0.05
 abstract:           Perl extension for the NMSG message interchange library
 author:
     - Matt Sisk <sisk@cert.org>

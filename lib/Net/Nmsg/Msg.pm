@@ -1,4 +1,4 @@
-# Copyright (C) 2010 by Carnegie Mellon University
+# Copyright (C) 2010-2011 by Carnegie Mellon University
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, as published by
@@ -91,7 +91,7 @@ sub fields_present {
     next if $flags->[$i] & NMSG_FF_HIDDEN;
     my $f = $fields->[$i];
     my $method = 'get_' . $f;
-    push(@fp, $f) if $self->$method;
+    push(@fp, $f) if UNIVERSAL::can($self, $method);
   }
   @fp;
 }
@@ -109,7 +109,6 @@ sub header_as_str {
   push(@str, sprintf("[%d:%d %s %s]",
              $self->VID, $self->MID, $self->type, $self->vendor));
   my $src = $msg->get_source;
-  print STDERR "SOURCE: ", $src || 'undef', "\n";
   push(@str, $src ? sprintf("[%08x]", $src) : '[]');
   join(' ',
     @str,
@@ -143,33 +142,31 @@ sub _debug_as_str {
 ###
 
 sub _unpack {
-  my $self    = shift;
-  return $self->[STAGE] if $self->[STAGE];
-  my $msg     = $self->_msg;
+  return $_[0]->[STAGE] if $_[0]->[STAGE];
+  my $msg = $_[0]->_msg;
   my @unpacked;
-  for my $i (0 .. $self->count - 1) {
+  for my $i (0 .. $_[0]->count - 1) {
     my @v = $msg->get_field_vals_by_idx($i);
     #print STDERR "UNPACK[$i] : ", Dumper(\@v), "\n";
     push(@unpacked, @v ? \@v : undef);
   }
-  $self->[STAGE] = \@unpacked;
+  $_[0]->[STAGE] = \@unpacked;
 }
 
 sub _pack {
-  my $self    = shift;
-  my $unp     = $self->[UNPACKED] || return;
-  my $flags   = $self->_flags;
-  my $msg     = $self->_msg;
+  my $unp   = $_[0]->[UNPACKED] || return;
+  my $flags = $_[0]->_flags;
+  my $msg   = $_[0]->_msg;
   for my $i (0 .. $#$unp) {
     my $val = $unp->[$i];
-    croak "field " . $self->fields->[$i] . " is required"
+    croak "field " . $_[0]->fields->[$i] . " is required"
       unless defined $val || !($flags->[$i] & NMSG_FF_REQUIRED);
     for my $f (0 ..$#$val) {
       #print STDERR "PACK[$i:$f] : ", $val->[$f], "\n";
       $msg->set_field_by_idx($i, $f, $val->[$f]);
     }
   }
-  $self->[UNPACKED] = undef;
+  $_[0]->[UNPACKED] = undef;
 }
 
 ###
@@ -183,9 +180,7 @@ sub _setter {
       my $msg  = $self->[MSG]      ||= $self->_new_msg;
       my $unp  = $self->[UNPACKED] ||= $self->_unpack;
       my $val  = $unp->[$idx]      ||= [];
-      if (@_ > 1 && !$repeated) {
-        @_ = pop;
-      }
+      @_ = pop if @_ > 1 && !$repeated;
       @$val = grep { defined $_ }
               map  { $mapper->($_, $msg) }
               grep { defined $_ }
@@ -199,9 +194,7 @@ sub _setter {
       my $msg  = $self->[MSG]      ||= $self->_new_msg;
       my $unp  = $self->[UNPACKED] ||= $self->_unpack;
       my $val  = $unp->[$idx]      ||= [];
-      if (@_ > 1 && !$repeated) {
-        @_ = pop;
-      }
+      @_ = pop if @_ > 1 && !$repeated;
       @$val = grep { defined $_ } @_;
       $unp->[$idx] = undef unless @$val;
     };
@@ -223,7 +216,7 @@ sub _pusher {
       push(@$val, grep { defined $_ } map { $mapper->($_, $msg) } @_);
     }
     else {
-      push(@$val, grep { defined $_ } @_);
+      push(@$val, @_);
     }
     $unp->[$idx] = undef unless @$val;
   };
@@ -233,38 +226,71 @@ sub _getter {
   my($class, $idx, $flags, $mapper) = @_;
   my $repeated = $flags & NMSG_FF_REPEATED;
   if ($mapper) {
-    return sub {
-      my $self = shift;
-      my $msg = $self->[MSG] ||= $self->_new_msg;
-      if (my $unp = $self->[STAGE]) {
-        my $v = $unp->[$idx];
-        return $mapper->($v->[0], $msg) unless $repeated;
-        my @res = map { $mapper->($_, $msg) } @$v;
-        wantarray ? @res : \@res;
-      }
-      else {
-        return $mapper->($msg->get_field_by_idx($idx, 0), $msg)
-          unless $repeated;
-        my @res = map { $mapper->($_, $msg) } $msg->get_field_vals_by_idx($idx);
-        wantarray ? @res : \@res;
-      }
-    };
+    if ($repeated) {
+      # plural mapped
+      return sub {
+        my $msg = $_[0]->[MSG] ||= $_[0]->_new_msg;
+        my @val;
+        if (my $unp = $_[0]->[STAGE]) {
+          if ($unp->[$idx]) {
+            @val = map { $mapper->($_, $msg) } @{$unp->[$idx]};
+          }
+        }
+        else {
+          @val = map { $mapper->($_, $msg) }
+                 $msg->get_field_vals_by_idx($idx);
+        }
+        wantarray ? @val : \@val;
+      };
+    }
+    else {
+      # singular mapped
+      return sub {
+        my $msg = $_[0]->[MSG] ||= $_[0]->_new_msg;
+        my $val;
+        if (my $unp = $_[0]->[STAGE]) {
+          return unless defined($val = $unp->[$idx]);
+          return unless defined($val = $val->[0]);
+        }
+        else {
+          return unless defined($val = $msg->get_field_by_idx($idx, 0));
+        }
+        return $mapper->($val, $msg);
+      };
+    }
   }
   else {
-    return sub {
-      my $self = shift;
-      if (my $unp = $self->[STAGE]) {
-        my $v = $unp->[$idx] || return;
-        return $v->[0] unless $repeated;
-        wantarray ? @$v : [@$v];
-      }
-      else {
-        my $msg = $self->[MSG] ||= $self->_new_msg;
-        return $msg->get_field_by_idx($idx) unless $repeated;
-        my @res = $msg->get_field_vals_by_idx($idx);
-        wantarray ? @res : \@res;
-      }
-    };
+    use Data::Dumper;
+    if ($repeated) {
+      # plural unmapped
+      return sub {
+        my $msg = $_[0]->[MSG] ||= $_[0]->_new_msg;
+        my @val;
+        if (my $unp = $_[0]->[STAGE]) {
+          @val = @{ $unp->[$idx] || [] };
+        }
+        else {
+          @val = $msg->get_field_vals_by_idx($idx);
+        }
+        wantarray ? @val : \@val;
+      };
+    }
+    else {
+      # singular unmapped
+      return sub {
+        my $msg = $_[0]->[MSG] ||= $_[0]->_new_msg;
+        my $val;
+        if (my $unp = $_[0]->[STAGE]) {
+          if ($val = $unp->[$idx]) {
+            $val = $val->[0];
+          }
+        }
+        else {
+          $val = $msg->get_field_by_idx($idx, 0);
+        }
+        defined $val ? $val : ();
+      };
+    }
   }
 }
 
@@ -456,7 +482,7 @@ Matthew Sisk, E<lt>sisk@cert.orgE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2010 by Carnegie Mellon University
+Copyright (C) 2010-2011 by Carnegie Mellon University
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, as published by

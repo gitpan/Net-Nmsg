@@ -1,4 +1,4 @@
-# Copyright (C) 2010 by Carnegie Mellon University
+# Copyright (C) 2010-2011 by Carnegie Mellon University
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, as published by
@@ -101,20 +101,24 @@ sub _init_input {
 
 sub open {
   my($self, $spec, $fatal, %opt) = shift->_open_init(@_);
-  my $is_file = Net::Nmsg::Util::is_file($spec);
   if (Net::Nmsg::Util::looks_like_socket($spec)) {
     #print STDERR "SOCKET $self\n";
     return $self->open_sock($spec, %opt)
       || ($fatal ? croak $self->error : return);
   }
-  elsif (Net::Nmsg::Util::is_file($spec)) {
+  elsif (Net::Nmsg::Util::is_file($spec) || ($spec || '') =~ /\.\w+$/) {
     #print STDERR "FILE $self\n";
-    if (Net::Nmsg::Util::is_nmsg_file($spec)) {
+    if (($spec || '') =~ /\.w+$/ && ! -f $spec) {
+      $fatal ? croak("file does not exist " . $spec) : return;
+    }
+    if (Net::Nmsg::Util::is_nmsg_file($spec) ||
+        ($spec || '') =~ /\.nmsg$/) {
       #print STDERR "NMSG $self\n";
       return $self->open_file($spec, %opt)
         || ($fatal ? croak $self->error : return);
     }
-    elsif (Net::Nmsg::Util::is_pcap_file($spec)) {
+    elsif (Net::Nmsg::Util::is_pcap_file($spec) ||
+           ($spec || '') =~ /\.pcap$/) {
       #print STDERR "PCAP $self\n";
       return $self->open_pcap($spec, %opt)
         || ($fatal ? croak $self->error : return);
@@ -429,7 +433,7 @@ Matthew Sisk, E<lt>sisk@cert.orgE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2010 by Carnegie Mellon University
+Copyright (C) 2010-2011 by Carnegie Mellon University
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, as published by

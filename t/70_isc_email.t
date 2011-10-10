@@ -1,8 +1,8 @@
-use Test::More tests => 296;
-
 use FindBin;
 use lib $FindBin::Bin;
 use nmsgtest;
+
+use Test::More tests => 296;
 
 use File::Temp;
 

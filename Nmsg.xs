@@ -1,6 +1,6 @@
 /*
 **
-** Copyright (C) 2010 by Carnegie Mellon University
+** Copyright (C) 2010-2011 by Carnegie Mellon University
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License, as published by
@@ -107,13 +107,13 @@ typedef union {
 
 static PerlInterpreter *orig_perl;
 static pthread_mutex_t callback_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t presentation_lock = PTHREAD_MUTEX_INITIALIZER;
 
 SV *
 _xs_wrap_msg(pTHX_ nmsg_message_t m) {
     char class[100];
     HV  *msg_stash;
     AV  *arr;
-    SV  *msg;
 
     MSG_SUBCLASS(class, nmsg_message_get_vid(m), nmsg_message_get_msgtype(m));
     msg_stash = gv_stashpv(class, TRUE);
@@ -130,22 +130,26 @@ output_callback(nmsg_message_t m, void *callback) {
     if (callback == NULL || m == NULL)
         return;
 
-    pthread_mutex_lock(&callback_lock);
     PERL_SET_CONTEXT(orig_perl);
-    dTHX;
+    pthread_mutex_lock(&callback_lock);
 
-    dSP;
-    ENTER;
-    SAVETMPS;
-    // push args onto stack
-    PUSHMARK(sp);
-    mXPUSHs(_xs_wrap_msg(aTHX_ m));
-    PUTBACK;
-    // re-wrap our callback CV in a reference and invoke perl function
-    call_sv(sv_2mortal(newRV((SV*)callback)), G_DISCARD);
-    // clean up
-    FREETMPS;
-    LEAVE;
+    { // C99 compliance
+
+      dTHX;
+      dSP;
+
+      ENTER;
+      SAVETMPS;
+      // push args onto stack
+      PUSHMARK(sp);
+      mXPUSHs(_xs_wrap_msg(aTHX_ m));
+      PUTBACK;
+      // re-wrap our callback CV in a reference and invoke perl function
+      call_sv(sv_2mortal(newRV((SV*)callback)), G_DISCARD);
+      // clean up
+      FREETMPS;
+      LEAVE;
+    }
 
     pthread_mutex_unlock(&callback_lock);
 
@@ -162,52 +166,57 @@ io_closed_callback(struct nmsg_io_close_event *ce) {
 
     //fprintf(stderr, "io_closed_callback: 0x%x\n", (int)ce->user);
 
-    pthread_mutex_lock(&callback_lock);
     PERL_SET_CONTEXT(orig_perl);
-    dTHX;
+    pthread_mutex_lock(&callback_lock);
 
-    dSP;
-    int   count;
-    IV    tmp;
-    SV   *ref;
-    void *ptr;
-    ENTER;
-    SAVETMPS;
-    // push args onto stack
-    PUSHMARK(sp);
-    mXPUSHs(newSViv(ce->close_type));
-    //mXPUSHs(newSViv(ce->io_type));
-    PUTBACK;
-    // re-wrap callback CV in a reference and invoke perl function
-    count = call_sv(sv_2mortal(newRV((SV*)ce->user)), G_SCALAR);
-    SPAGAIN;
-    if (count != 1)
-        croak("single return value required from callback");
-    ref = POPs;
-    if (! SvROK(ref))
-        croak("not a reference");
-    tmp = SvIV(SvRV(ref));
-    ptr = INT2PTR(void *, tmp);
-    if (ptr != NULL) {
-        //fprintf(stderr, "xs reopen output %p\n", *(ce->output));
-        *(ce->output) = ptr;
-        //*(ce->output) = INT2PTR(nmsg_output_t, tmp);
-        //*(ce->output) = (nmsg_output_t)tmp;
-        //fprintf(stderr, "xs reopen output %p\n", *(ce->output));
+    { // C99 compliance
+
+      int   count;
+      IV    tmp;
+      SV   *ref;
+      void *ptr;
+
+      dTHX;
+      dSP;
+
+      ENTER;
+      SAVETMPS;
+      // push args onto stack
+      PUSHMARK(sp);
+      mXPUSHs(newSViv(ce->close_type));
+      //mXPUSHs(newSViv(ce->io_type));
+      PUTBACK;
+      // re-wrap callback CV in a reference and invoke perl function
+      count = call_sv(sv_2mortal(newRV((SV*)ce->user)), G_SCALAR);
+      SPAGAIN;
+      if (count != 1)
+          croak("single return value required from callback");
+      ref = POPs;
+      if (! SvROK(ref))
+          croak("not a reference");
+      tmp = SvIV(SvRV(ref));
+      ptr = INT2PTR(void *, tmp);
+      if (ptr != NULL) {
+          //fprintf(stderr, "xs reopen output %p\n", *(ce->output));
+          *(ce->output) = ptr;
+          //*(ce->output) = INT2PTR(nmsg_output_t, tmp);
+          //*(ce->output) = (nmsg_output_t)tmp;
+          //fprintf(stderr, "xs reopen output %p\n", *(ce->output));
+      }
+      PUTBACK;
+
+      // clean up
+      FREETMPS;
+      LEAVE;
     }
-    PUTBACK;
-
-    // clean up
-    FREETMPS;
-    LEAVE;
 
     pthread_mutex_unlock(&callback_lock);
 
     //fprintf(stderr, "io_closed_callback complete\n");
 }
 
-void
-_xs_field_to_sv(pTHX_ void *data, size_t len, nmsg_msgmod_field_type type, SV *sv) {
+SV *
+_xs_field_to_sv(pTHX_ void *data, size_t len, nmsg_msgmod_field_type type) {
 
     if (data == NULL)
         croak("oops void pointer");
@@ -217,29 +226,24 @@ _xs_field_to_sv(pTHX_ void *data, size_t len, nmsg_msgmod_field_type type, SV *s
     case nmsg_msgmod_ft_enum:
     case nmsg_msgmod_ft_int16:
     case nmsg_msgmod_ft_int32:
-        //fprintf(stderr, "sv_setiv %d\n", *(int *)data);
-        sv_setiv(sv, *(IV*)data);
-        break;
-
+        // fprintf(stderr, "sv_setiv %d %d\n", len, *(int *)data);
+        return newSViv(*(int *)data);
     case nmsg_msgmod_ft_uint16:
     case nmsg_msgmod_ft_uint32:
-        //fprintf(stderr, "sv_setuv %d\n", *(unsigned *)data);
-        sv_setuv(sv, *(UV*)data);
-        break;
+        // fprintf(stderr, "sv_setuv %d %d\n", len, *(unsigned *)data);
+        return newSVuv(*(unsigned *)data);
     case nmsg_msgmod_ft_string:
     case nmsg_msgmod_ft_mlstring:
         // len includes trailing null
-        sv_setpvn(sv, (char *)data, len - 1);
-        break;
+        return newSVpv((char *)data, len - 1);
     // case nmsg_msgmod_ft_uint64:
     // case nmsg_msgmod_ft_int64:
     // case nmsg_msgmod_ft_ip:
     // case nmsg_msgmod_ft_bytes:
     default:
-        //fprintf(stderr, "bytes sv_setpvn len:%d\n", (int)len);
-        sv_setpvn(sv, (char *)data, len);
+        // fprintf(stderr, "bytes sv_setpvn len:%d\n", (int)len);
+        return newSVpvn((char *)data, len);
     }
-
 }
 
 uint8_t *
@@ -390,7 +394,8 @@ _nmsg_init_lib()
     PREINIT:
     nmsg_res    res;
     CODE:
-    orig_perl = Perl_get_context();
+    if (NULL == orig_perl)
+        orig_perl = Perl_get_context();
     res = nmsg_init();
     if (res != nmsg_res_success)
         croak("nmsg_init failed: %s", nmsg_res_lookup(res));
@@ -479,7 +484,7 @@ get_timestring()
     if (tstr == NULL)
         croak("problem allocating time string");
     mXPUSHs(newSVpv(tstr, 0));
-    Safefree(tstr);
+    free(tstr);
 
 
 
@@ -528,8 +533,9 @@ PROTOTYPES: ENABLE
 
 Net::Nmsg::XS::io
 init(CLASS)
-	char *CLASS
+  const char *CLASS
     CODE:
+    PERL_UNUSED_VAR(CLASS);
     RETVAL = nmsg_io_init();
     OUTPUT:
     RETVAL
@@ -639,6 +645,7 @@ _input_open(CLASS, pcap)
     const char          *CLASS
     Net::Nmsg::XS::pcap  pcap
     CODE:
+    PERL_UNUSED_VAR(CLASS);
     RETVAL = nmsg_pcap_input_open(pcap);
     if (RETVAL == NULL)
         croak("nmsg_pcap_input_open() failed");
@@ -681,8 +688,8 @@ open_offline(CLASS, fname)
     const char  *fname
     PREINIT:
     char    err[PCAP_ERRBUF_SIZE];
-    pcap_t *phandle;
     CODE:
+    PERL_UNUSED_VAR(CLASS);
     RETVAL = pcap_open_offline(fname, err);
     if (RETVAL == NULL)
         croak("pcap_open_offline() failed: %s", err);
@@ -697,8 +704,8 @@ open_live(CLASS, iface, snaplen, promisc)
     int         promisc
     PREINIT:
     char    err[PCAP_ERRBUF_SIZE];
-    pcap_t *phandle;
     CODE:
+    PERL_UNUSED_VAR(CLASS);
     RETVAL = pcap_open_live(iface, snaplen, promisc, 0, err);
     if (RETVAL == NULL)
         croak("pcap_open_offline() failed: %s", err);
@@ -712,14 +719,32 @@ destroy(THIS)
     pcap_close(THIS);
 
 int
-pcap_set_snaplen(THIS, snaplen)
+set_snaplen(THIS, snaplen)
     Net::Nmsg::XS::pcap THIS
     int                 snaplen
+    CODE:
+#ifdef LIMITED_PCAP
+    PERL_UNUSED_VAR(snaplen);
+    croak("pcap_set_snaplen unavailable in this version of libpcap");
+#else
+    RETVAL = pcap_set_snaplen(THIS, snaplen);
+#endif /* LIMITED_PCAP */
+    OUTPUT:
+    RETVAL
 
 int
-pcap_set_promisc(THIS, promisc)
+set_promisc(THIS, promisc)
     Net::Nmsg::XS::pcap THIS
     int                 promisc
+    CODE:
+#ifdef LIMITED_PCAP
+    PERL_UNUSED_VAR(promisc);
+    croak("pcap_set_promisc unavailable in this version of libpcap");
+#else
+    RETVAL = pcap_set_promisc(THIS, promisc);
+#endif /* LIMITED_PCAP */
+    OUTPUT:
+    RETVAL
 
 void
 get_selectable_fd(THIS)
@@ -728,7 +753,7 @@ get_selectable_fd(THIS)
     int res;
     PPCODE:
     res = pcap_get_selectable_fd(THIS);
-    if (res != PCAP_ERROR)
+    if (res != -1)
         mXPUSHi(res);
 
 int
@@ -752,31 +777,34 @@ destroy(THIS)
 
 Net::Nmsg::XS::input_file
 nmsg_input_open_file(CLASS, fd)
-    char   *CLASS
+    const char   *CLASS
     PerlIO *fd
     CODE:
+    PERL_UNUSED_VAR(CLASS);
     RETVAL = nmsg_input_open_file(PerlIO_fileno(fd));
     OUTPUT:
     RETVAL
 
 Net::Nmsg::XS::input_sock
 nmsg_input_open_sock(CLASS, fh)
-    char   *CLASS
+    const char   *CLASS
     PerlIO *fh
     CODE:
+    PERL_UNUSED_VAR(CLASS);
     RETVAL = nmsg_input_open_sock(PerlIO_fileno(fh));
     OUTPUT:
     RETVAL
 
 Net::Nmsg::XS::input_pres
 _open_pres(CLASS, fh, vid, mid)
-    char       *CLASS
+    const char       *CLASS
     PerlIO     *fh
     unsigned    vid
     unsigned    mid
     PREINIT:
     nmsg_msgmod_t   mod;
     CODE:
+    PERL_UNUSED_VAR(CLASS);
     mod = nmsg_msgmod_lookup(vid, mid);
     if (mod == NULL)
         croak("unknown vendor id '%d' or message type '%d'", vid, mid);
@@ -786,13 +814,14 @@ _open_pres(CLASS, fh, vid, mid)
 
 Net::Nmsg::XS::input_pcap
 _open_pcap(CLASS, pcap, vid, mid)
-    char                       *CLASS
+    const char                       *CLASS
     Net::Nmsg::XS::nmsg_pcap    pcap
     unsigned                    vid
     unsigned                    mid
     PREINIT:
     nmsg_msgmod_t   mod;
     CODE:
+    PERL_UNUSED_VAR(CLASS);
     mod = nmsg_msgmod_lookup(vid, mid);
     if (mod == NULL)
         croak("unknown vendor id '%d' or message type '%d'", vid, mid);
@@ -918,38 +947,42 @@ destroy(THIS)
 
 Net::Nmsg::XS::output_file
 open_file(CLASS, fh, bufsz)
-    char   *CLASS
+    const char   *CLASS
     PerlIO *fh
     size_t  bufsz
     CODE:
+    PERL_UNUSED_VAR(CLASS);
     RETVAL = nmsg_output_open_file(PerlIO_fileno(fh), bufsz);
     OUTPUT:
     RETVAL
 
 Net::Nmsg::XS::output_sock
 open_sock(CLASS, fh, bufsz)
-    char   *CLASS
+    const char   *CLASS
     PerlIO *fh
     size_t  bufsz
     CODE:
+    PERL_UNUSED_VAR(CLASS);
     RETVAL = nmsg_output_open_sock(PerlIO_fileno(fh), bufsz);
     OUTPUT:
     RETVAL
 
 Net::Nmsg::XS::output_pres
 open_pres(CLASS, fh)
-    char   *CLASS
+    const char   *CLASS
     PerlIO *fh
     CODE:
+    PERL_UNUSED_VAR(CLASS);
     RETVAL = nmsg_output_open_pres(PerlIO_fileno(fh));
     OUTPUT:
     RETVAL
 
 Net::Nmsg::XS::output_cb
 open_callback(CLASS, cb)
-    char    *CLASS
+    const char    *CLASS
     CV      *cb
     CODE:
+    PERL_UNUSED_VAR(CLASS);
     RETVAL = nmsg_output_open_callback(output_callback, (void *)cb);
     OUTPUT:
     RETVAL
@@ -1065,6 +1098,7 @@ nmsg_message_init(CLASS, mod)
     char           *CLASS
     nmsg_msgmod_t   mod
     CODE:
+    PERL_UNUSED_VAR(CLASS);
     RETVAL = nmsg_message_init(mod);
     OUTPUT:
     RETVAL
@@ -1106,15 +1140,15 @@ get_field(THIS, field, v_idx = 0)
     nmsg_res                res;
     size_t                  len;
     void                   *data;
-    unsigned                flags;
     nmsg_msgmod_field_type  type;
     PPCODE:
     res = nmsg_message_get_field(THIS, field, v_idx, &data, &len);
     if (res == nmsg_res_success) {
         res = nmsg_message_get_field_type(THIS, field, &type);
         if (res == nmsg_res_success) {
-            mXPUSHs(newSV(0));
-            _xs_field_to_sv(aTHX_ data, len, type, ST(0));
+            // mXPUSHs(newSV(0));
+            // _xs_field_to_sv(aTHX_ data, len, type, ST(0));
+            mXPUSHs(_xs_field_to_sv(aTHX_ data, len, type));
         }
     }
 
@@ -1133,8 +1167,9 @@ get_field_by_idx(THIS, f_idx, v_idx = 0)
     if (res == nmsg_res_success) {
         res = nmsg_message_get_field_type_by_idx(THIS, f_idx, &type);
         if (res == nmsg_res_success) {
-            mXPUSHs(newSV(0));
-            _xs_field_to_sv(aTHX_ data, len, type, ST(0));
+            // mXPUSHs(newSV(0));
+            // _xs_field_to_sv(aTHX_ data, len, type, ST(0));
+            mXPUSHs(_xs_field_to_sv(aTHX_ data, len, type));
         }
     }
 
@@ -1155,8 +1190,9 @@ get_field_vals_by_idx(THIS, f_idx)
             res = nmsg_message_get_field_by_idx(THIS, f_idx, i, &data, &len);
             if (res != nmsg_res_success)
                 break;
-            mXPUSHs(newSV(0));
-            _xs_field_to_sv(aTHX_ data, len, type, ST(i));
+            // mXPUSHs(newSV(0));
+            // _xs_field_to_sv(aTHX_ data, len, type, ST(i));
+            mXPUSHs(_xs_field_to_sv(aTHX_ data, len, type));
         }
     }
 
@@ -1334,11 +1370,16 @@ message_to_pres(THIS, endline)
     nmsg_res  res;
     char     *pres;
     PPCODE:
+    pthread_mutex_lock(&presentation_lock);
     res = nmsg_message_to_pres(THIS, &pres, endline);
     if (res != nmsg_res_success)
-        croak("nmsg_message_to_pres failed: %s", nmsg_res_lookup(res));
+        goto out;
     mXPUSHs(newSVpv(pres, 0));
-    Safefree(pres);
+    free(pres);
+    out:
+    pthread_mutex_unlock(&presentation_lock);
+    if (res != nmsg_res_success)
+        croak("nmsg_message_to_pres failed: %s", nmsg_res_lookup(res));
 
 void
 get_field_type_descr_by_idx(THIS, f_idx)
@@ -1424,12 +1465,12 @@ get_field_enum_descr_by_idx(THIS, f_idx)
     nmsg_res                res;
     nmsg_msgmod_field_type  type;
     unsigned                v;
-    char                   *name;
+    const char             *name;
     PPCODE:
     res = nmsg_message_get_field_type_by_idx(THIS, f_idx, &type);
     if (res == nmsg_res_success && type == nmsg_msgmod_ft_enum) {
         for (v = 0; v; v++) {
-            res = nmsg_message_get_enum_value_to_name_by_idx(
+            res = nmsg_message_enum_value_to_name_by_idx(
                     THIS, f_idx, v, &name);
             if (res != nmsg_res_success)
                 break;

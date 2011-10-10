@@ -1,4 +1,4 @@
-# Copyright (C) 2010 by Carnegie Mellon University
+# Copyright (C) 2010-2011 by Carnegie Mellon University
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, as published by
@@ -36,7 +36,7 @@ use base qw( Net::Nmsg::Typemap );
 
 use Net::Nmsg::Util qw( :field );
 
-use Math::Int64;
+use Math::Int64 qw( int64_to_native uint64_to_native );
 use NetAddr::IP::Util qw( inet_aton ipv6_aton );
 
 my @From;
@@ -76,7 +76,7 @@ use base qw( Net::Nmsg::Typemap );
 
 use Net::Nmsg::Util qw( :field );
 
-use Math::Int64;
+use Math::Int64 qw( native_to_int64 native_to_uint64 );
 use NetAddr::IP::Util qw( ipv6_n2x inet_ntoa );
 
 my @To;

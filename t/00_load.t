@@ -1,11 +1,11 @@
-use Test::More tests => 7;
-
 use FindBin;
 use lib $FindBin::Bin;
+use nmsgtest;
+
+use Test::More tests => 6;
 
 BEGIN {
   use_ok('Net::Nmsg');
-  use_ok('nmsgtest');
 }
 
 use_ok(UTIL_CLASS);

@@ -1,4 +1,4 @@
-# Copyright (C) 2010 by Carnegie Mellon University
+# Copyright (C) 2010-2011 by Carnegie Mellon University
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, as published by
@@ -38,10 +38,10 @@ sub _open_file {
   $mode ||= 'r';
   my $fh = $class->FILE_IO->new;
   if (my $fd = fileno($spec)) {
-    $fh->fdopen($fd, $mode) || die $fh->error;
+    $fh->fdopen($fd, $mode) || die $!;
   }
   else {
-    $fh->open($spec, $mode) || die $fh->error;
+    $fh->open($spec, $mode) || die $!;
   }
   $fh;
 }
