@@ -324,8 +324,6 @@ BOOT:
 
     stash = gv_stashpv("Net::Nmsg::Util", TRUE);
 
-    MCE(NMSG_RES_SUCCESS, nmsg_res_success);
-
     MC(NMSG_DEFAULT_SNAPLEN);
     MC(NMSG_FLAG_FRAGMENT);
     MC(NMSG_FLAG_ZLIB);
@@ -393,6 +391,8 @@ BOOT:
     MCE(NMSG_FT_INT16,      nmsg_msgmod_ft_int16   );
     MCE(NMSG_FT_INT32,      nmsg_msgmod_ft_int32   );
     MCE(NMSG_FT_INT64,      nmsg_msgmod_ft_int64   );
+    MCE(NMSG_FT_DOUBLE,     nmsg_msgmod_ft_double  );
+    MCE(NMSG_FT_BOOL,       nmsg_msgmod_ft_bool    );
 
     MCE(NMSG_ALIAS_OPERATOR,    nmsg_alias_operator);
     MCE(NMSG_ALIAS_GROUP,       nmsg_alias_group   );
@@ -1384,6 +1384,33 @@ set_field_by_idx(THIS, f_idx, v_idx, sv)
         if (res != nmsg_res_success)
             croak("nmsg_message_set_field_by_idx failed: %s", nmsg_res_lookup(res));
     }
+
+void
+nmsg_message_set_source(THIS, source)
+    Net::Nmsg::XS::msg  THIS
+    uint32_t            source
+
+void
+nmsg_message_set_operator(THIS, operator)
+    Net::Nmsg::XS::msg  THIS
+    uint32_t            operator
+
+void
+nmsg_message_set_group(THIS, group)
+    Net::Nmsg::XS::msg  THIS
+    uint32_t            group
+
+void
+set_time(THIS, time_sec, time_nsec)
+    Net::Nmsg::XS::msg  THIS
+    long                time_sec
+    int                 time_nsec
+    PREINIT:
+    struct timespec ts;
+    PPCODE:
+    ts.tv_sec = time_sec;
+    ts.tv_nsec = time_nsec;
+    nmsg_message_set_time(THIS, &ts);
 
 void
 message_to_pres(THIS, endline)

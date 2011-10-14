@@ -21,6 +21,7 @@ lib/Net/Nmsg/Layer.pm
 
 t/00_load.t
 t/11_sock.t
+t/12_types.t
 t/20_sniff.t
 t/70_isc_email.t
 t/70_isc_http.t

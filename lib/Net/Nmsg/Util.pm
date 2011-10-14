@@ -16,7 +16,7 @@ use strict;
 use warnings;
 use Carp;
 
-use vars qw( @EXPORT_OK %EXPORT_TAGS $VERSION );
+use vars qw( @EXPORT_OK %EXPORT_TAGS );
 
 require Exporter;
 
@@ -104,6 +104,8 @@ my @Field_Types = qw(
   NMSG_FT_INT16
   NMSG_FT_INT32
   NMSG_FT_INT64
+  NMSG_FT_DOUBLE
+  NMSG_FT_BOOL
 );
 
 my @Field_Flags = qw(
@@ -116,7 +118,10 @@ my @Field_Flags = qw(
 my @Field = (
   @Field_Types,
   @Field_Flags,
+  'field_types',
   'field_flags',
+  'field_types_by_val',
+  'field_flags_by_val',
 );
 
 my @IO = qw(
@@ -217,7 +222,39 @@ my %All;
 
 ### field descriptors
 
-sub field_flags { @Field_Flags }
+sub field_types {
+  my %types;
+  for my $f (@Field_Types) {
+    $types{$f} = eval "$f()";
+  }
+  wantarray ? %types : \%types;
+}
+
+sub field_flags {
+  my %flags;
+  for my $f (@Field_Flags) {
+    $flags{$f} = eval "$f()";
+  }
+  wantarray ? %flags : \%flags;
+}
+
+sub field_types_by_val {
+  my %types;
+  for my $f (@Field_Types) {
+    my $v = eval "$f()";
+    $types{$v} = $f;
+  }
+  wantarray ? %types : \%types;
+}
+
+sub field_flags_by_val {
+  my %flags;
+  for my $f (@Field_Flags) {
+    my $v = eval "$f()";
+    $flags{$v} = $f;
+  }
+  wantarray ? %flags : \%flags;
+}
 
 ### iface
 
@@ -525,11 +562,16 @@ As such, root privileges are likely necessary for them to be useful.
   NMSG_FT_INT16
   NMSG_FT_INT32
   NMSG_FT_INT64
+  NMSG_FT_DOUBLE
+  NMSG_FT_BOOL
 
   NMSG_FF_REPEATED
   NMSG_FF_REQUIRED
   NMSG_FF_NOPRINT
   NMSG_FF_HIDDEN
+
+  field_types()
+  field_flags()
 
 
 =head2 Tag group :io

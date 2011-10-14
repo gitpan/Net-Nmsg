@@ -309,6 +309,7 @@ Available options:
 =over 4
 
 =item filter_vendor
+
 =item filter_msgtype
 
 Filter incoming messages based on the given vendor/msgtype. Both are

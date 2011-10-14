@@ -21,9 +21,9 @@ use Carp;
 use Net::Nmsg::Util qw( :field );
 use Net::Nmsg::Typemap;
 
-use constant MSG      => 0;
-use constant STAGE    => 1;
-use constant UNPACKED => 2;
+use constant MSG   => 0;
+use constant STAGE => 1;
+use constant DIRTY => 2;
 
 my $Input_Typemap_Class  = 'Net::Nmsg::Typemap::Input';
 my $Output_Typemap_Class = 'Net::Nmsg::Typemap::Output';
@@ -73,13 +73,37 @@ sub new {
 
 sub msg {
   my $self = shift;
-  $self->_pack if $self->[UNPACKED];
+  $self->_pack if $self->[DIRTY];
   $self->[MSG];
 }
 
 sub _msg {
   my $self = shift;
   $self->[MSG] ||= $self->_new_msg;
+}
+
+sub source {
+  my $self = shift;
+  $self->_msg->set_source(shift) if @_;
+  $self->_msg->get_source()
+}
+
+sub operator {
+  my $self = shift;
+  $self->_msg->set_operator(shift) if @_;
+  $self->_msg->get_operator()
+}
+
+sub group {
+  my $self = shift;
+  $self->_msg->set_group(shift) if @_;
+  $self->_msg->get_group()
+}
+
+sub time {
+  my $self = shift;
+  $self->_msg->set_time(@_) if @_;
+  $self->_mgs->get_time();
 }
 
 sub fields_present {
@@ -143,7 +167,7 @@ sub _debug_as_str {
 
 sub _unpack {
   return $_[0]->[STAGE] if $_[0]->[STAGE];
-  my $msg = $_[0]->_msg;
+  my $msg = $_[0]->[MSG] ||= $_[0]->_new_msg;
   my @unpacked;
   for my $i (0 .. $_[0]->count - 1) {
     my @v = $msg->get_field_vals_by_idx($i);
@@ -154,9 +178,9 @@ sub _unpack {
 }
 
 sub _pack {
-  my $unp   = $_[0]->[UNPACKED] || return;
+  my $unp   = $_[0]->[DIRTY] || return;
   my $flags = $_[0]->_flags;
-  my $msg   = $_[0]->_msg;
+  my $msg   = $_[0]->[MSG] ||= $_[0]->_new_msg;
   for my $i (0 .. $#$unp) {
     my $val = $unp->[$i];
     croak "field " . $_[0]->fields->[$i] . " is required"
@@ -166,7 +190,7 @@ sub _pack {
       $msg->set_field_by_idx($i, $f, $val->[$f]);
     }
   }
-  $_[0]->[UNPACKED] = undef;
+  $_[0]->[DIRTY] = undef;
 }
 
 ###
@@ -177,9 +201,10 @@ sub _setter {
   if ($mapper) {
     return sub {
       my $self = shift;
-      my $msg  = $self->[MSG]      ||= $self->_new_msg;
-      my $unp  = $self->[UNPACKED] ||= $self->_unpack;
-      my $val  = $unp->[$idx]      ||= [];
+      @_ || return;
+      my $unp = $self->[DIRTY] ||= $self->_unpack;
+      my $msg = $self->[MSG]   ||= $self->_new_msg;
+      my $val = $unp->[$idx]   ||= [];
       @_ = pop if @_ > 1 && !$repeated;
       @$val = grep { defined $_ }
               map  { $mapper->($_, $msg) }
@@ -191,9 +216,10 @@ sub _setter {
   else {
     return sub {
       my $self = shift;
-      my $msg  = $self->[MSG]      ||= $self->_new_msg;
-      my $unp  = $self->[UNPACKED] ||= $self->_unpack;
-      my $val  = $unp->[$idx]      ||= [];
+      @_ || return;
+      my $unp = $self->[DIRTY] ||= $self->_unpack;
+      my $msg = $self->[MSG]   ||= $self->_new_msg;
+      my $val = $unp->[$idx]   ||= [];
       @_ = pop if @_ > 1 && !$repeated;
       @$val = grep { defined $_ } @_;
       $unp->[$idx] = undef unless @$val;
@@ -206,9 +232,10 @@ sub _pusher {
   croak "not a repeated field ($idx)" unless $flags & NMSG_FF_REPEATED;
   return sub {
     my $self = shift;
-    my $msg  = $self->[MSG]      ||= $self->_new_msg;
-    my $unp  = $self->[UNPACKED] ||= $self->_unpack;
-    my $val  = $unp->[$idx]      ||= [];
+    @_ || return;
+    my $unp = $self->[DIRTY] ||= $self->_unpack;
+    my $msg = $self->[MSG]   ||= $self->_new_msg;
+    my $val = $unp->[$idx]   ||= [];
     @_ = grep { defined $_ } @_;
     @_ || return;
     #print STDERR "SUPPOSED ADD $idx => ", join(', ', @_), "\n";
@@ -232,11 +259,13 @@ sub _getter {
         my $msg = $_[0]->[MSG] ||= $_[0]->_new_msg;
         my @val;
         if (my $unp = $_[0]->[STAGE]) {
+          # use unpacked if available
           if ($unp->[$idx]) {
             @val = map { $mapper->($_, $msg) } @{$unp->[$idx]};
           }
         }
         else {
+          # otherwise query the struct directly
           @val = map { $mapper->($_, $msg) }
                  $msg->get_field_vals_by_idx($idx);
         }
@@ -249,10 +278,12 @@ sub _getter {
         my $msg = $_[0]->[MSG] ||= $_[0]->_new_msg;
         my $val;
         if (my $unp = $_[0]->[STAGE]) {
+          # use unpacked if available
           return unless defined($val = $unp->[$idx]);
           return unless defined($val = $val->[0]);
         }
         else {
+          # otherwise query the struct directly
           return unless defined($val = $msg->get_field_by_idx($idx, 0));
         }
         return $mapper->($val, $msg);
@@ -260,16 +291,17 @@ sub _getter {
     }
   }
   else {
-    use Data::Dumper;
     if ($repeated) {
       # plural unmapped
       return sub {
         my $msg = $_[0]->[MSG] ||= $_[0]->_new_msg;
         my @val;
         if (my $unp = $_[0]->[STAGE]) {
+          # use unpacked if available
           @val = @{ $unp->[$idx] || [] };
         }
         else {
+          # otherwise query the struct directly
           @val = $msg->get_field_vals_by_idx($idx);
         }
         wantarray ? @val : \@val;
@@ -281,11 +313,13 @@ sub _getter {
         my $msg = $_[0]->[MSG] ||= $_[0]->_new_msg;
         my $val;
         if (my $unp = $_[0]->[STAGE]) {
+          # use unpacked if available
           if ($val = $unp->[$idx]) {
             $val = $val->[0];
           }
         }
         else {
+          # otherwise query the struct directly
           $val = $msg->get_field_by_idx($idx, 0);
         }
         defined $val ? $val : ();
@@ -312,20 +346,48 @@ sub _msg_descr {
 sub _load_methods {
   my $class = shift;
   $class = ref $class || $class;
+
+  my $types_by_val = field_types_by_val();
+  my $flags_by_val = field_flags_by_val();
+
   my $msg = $class->_new_msg;
   my($fields, $types, $flags) = $class->_msg_descr($msg);
+
+  my(@tlabels, @flabels);
+
   no strict "refs";
   *{ "$class\::_fields" } = sub { $fields };
   *{ "$class\::_types"  } = sub { $types  };
   *{ "$class\::_flags"  } = sub { $flags  };
   *{ "$class\::fields"  } = sub { wantarray ? @$fields : [@$fields] };
-  *{ "$class\::types"   } = sub { wantarray ? @$types  : [@$types ] };
-  *{ "$class\::flags"   } = sub { wantarray ? @$flags  : [@$flags ] };
+  *{ "$class\::types"   } = sub { wantarray ? @tlabels : [@tlabels] };
   *{ "$class\::count"   } = sub { scalar @$fields };
+  *{ "$class\::flags"   } = sub {
+    my @flags;
+    for my $f (@flabels) {
+      push(@flags, {%$f});
+    }
+    wantarray ? @flags : \@flags;
+  };
   for my $i (0 .. $#$fields) {
     my $key = $fields->[$i];
     my $ft  = $types ->[$i];
     my $ff  = $flags ->[$i];
+    $tlabels[$i] = $types_by_val->{$ft};
+    my %labels;
+    if ($ff) {
+      my $c = 0;
+      my $fff = $ff;
+      while ($fff) {
+        if ($fff & 0x01) {
+          my $v = 2 ** $c;
+          $labels{$flags_by_val->{$v} || 'UNKNOWN'} = $v;
+        }
+        ++$c;
+        $fff >>= 1;
+      }
+    }
+    $flabels[$i] = \%labels;
     my $repeated = $ff & NMSG_FF_REPEATED;
     my $in_map   = $Input_Typemap_Class ->make_mapper($ft, $i);
     my $out_map  = $Output_Typemap_Class->make_mapper($ft, $i);
@@ -400,6 +462,23 @@ The name of the vendor of this message module.
 
 The message type of this message module.
 
+=item source([source])
+
+Return or set the source ID of this message.
+
+=item operator([operator])
+
+Return or set the operator ID of this message.
+
+=item group([group])
+
+Return or set the group of this message.
+
+=item time([time_sec, time_nsec])
+
+Return or set the timestamp of this message. Accepts and returns
+two integer values representing seconds and nanoseconds.
+
 =item fields()
 
 A list of possible field names for this message module.
@@ -449,6 +528,8 @@ methods if the field is one of the following data types:
   NMSG_FT_UINT32
   NMSG_FT_INT16
   NMSG_FT_INT32
+  NMSG_FT_DOUBLE
+  NMSG_FT_BOOL
 
 The following field types behave differently since there are no native
 perl types for them:
