@@ -301,18 +301,26 @@ sub _alias_lookup {
   my($id, $alias);
   if (my $v = shift) {
     if ($v =~ /^\d+$/) {
-      if (my $res = alias_by_key($type, $v)) {
-        ($id, $alias) = ($v, $res);
+      if ($alias = alias_by_key($type, $v) || '') {
+        $id = $v;
+      }
+      else {
+        $id = 0;
       }
     }
     else {
-      if (my $res = key_by_alias($type, $v)) {
-        ($id, $alias) = ($res, $v);
-        $id || croak "unknown alias '$v'";
+      if ($id = alias_by_value($type, $v) || 0) {
+        $alias = $v;
+      }
+      else {
+        $alias = '';
       }
     }
   }
-  return($id || 0, $alias);
+  else {
+    ($id, $alias) = (0, '');
+  }
+  ($id, $alias);
 }
 
 sub operator_lookup { _alias_lookup(NMSG_ALIAS_OPERATOR, @_) }

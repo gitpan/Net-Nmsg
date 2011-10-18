@@ -395,8 +395,6 @@ Net::Nmsg::IO - Net::Nmsg - Perl interface for the nmsg IO loop
 
   my $io = Net::Nmsg::IO->new();
 
-  my $c = 0;
-
   my $cb = sub {
     my $msg = shift;
     print $msg->as_str, "\n";

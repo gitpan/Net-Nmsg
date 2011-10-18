@@ -221,7 +221,7 @@ SV *
 _xs_field_to_sv(pTHX_ void *data, size_t len, nmsg_msgmod_field_type type) {
 
     if (data == NULL)
-        croak("oops void pointer");
+        croak("oops null data pointer");
 
     switch (type) {
 
@@ -843,35 +843,20 @@ _open_pcap(CLASS, pcap, vid, mid)
     OUTPUT:
     RETVAL
 
-unsigned
+void
 nmsg_input_set_filter_source(THIS, value)
 	Net::Nmsg::XS::input    THIS
 	unsigned    value
-    CODE:
-    nmsg_input_set_filter_source(THIS, value);
-    RETVAL = value;
-    OUTPUT:
-    RETVAL
 
-unsigned
+void
 nmsg_input_set_filter_group(THIS, value)
 	Net::Nmsg::XS::input    THIS
 	unsigned    value
-    CODE:
-    nmsg_input_set_filter_group(THIS, value);
-    RETVAL = value;
-    OUTPUT:
-    RETVAL
 
-unsigned
+void
 nmsg_input_set_filter_operator(THIS, value)
 	Net::Nmsg::XS::input    THIS
 	unsigned    value
-    CODE:
-    nmsg_input_set_filter_operator(THIS, value);
-    RETVAL = value;
-    OUTPUT:
-    RETVAL
 
 void
 _set_filter_msgtype(THIS, vid, mid)
@@ -999,25 +984,15 @@ open_callback(CLASS, cb)
     OUTPUT:
     RETVAL
 
-bool
+void
 nmsg_output_set_buffered(THIS, value)
 	Net::Nmsg::XS::output   THIS
 	bool    value
-    CODE:
-    nmsg_output_set_buffered(THIS, value);
-    RETVAL = value;
-    OUTPUT:
-    RETVAL
 
-const char *
+void
 nmsg_output_set_endline(THIS, value)
 	Net::Nmsg::XS::output   THIS
 	const char *value
-    CODE:
-    nmsg_output_set_endline(THIS, value);
-    RETVAL = value;
-    OUTPUT:
-    RETVAL
 
 void
 _set_rate(THIS, rate, freq)
@@ -1034,45 +1009,25 @@ _set_rate(THIS, rate, freq)
     mXPUSHu(rate);
     mXPUSHu(freq);
 
-bool
+void
 nmsg_output_set_zlibout(THIS, value)
 	Net::Nmsg::XS::output   THIS
 	bool    value
-    CODE:
-    nmsg_output_set_zlibout(THIS, value);
-    RETVAL = value;
-    OUTPUT:
-    RETVAL
 
-unsigned
+void
 nmsg_output_set_group(THIS, value)
 	Net::Nmsg::XS::output   THIS
 	unsigned    value
-    CODE:
-    nmsg_output_set_group(THIS, value);
-    RETVAL = value;
-    OUTPUT:
-    RETVAL
 
-unsigned
+void
 nmsg_output_set_operator(THIS, value)
 	Net::Nmsg::XS::output   THIS
 	unsigned    value
-    CODE:
-    nmsg_output_set_operator(THIS, value);
-    RETVAL = value;
-    OUTPUT:
-    RETVAL
 
-unsigned
+void
 nmsg_output_set_source(THIS, value)
 	Net::Nmsg::XS::output   THIS
 	unsigned    value
-    CODE:
-    nmsg_output_set_source(THIS, value);
-    RETVAL = value;
-    OUTPUT:
-    RETVAL
 
 void
 _set_filter_msgtype(THIS, vid, mid)
@@ -1166,7 +1121,7 @@ get_field(THIS, field, v_idx = 0)
     nmsg_msgmod_field_type  type;
     PPCODE:
     res = nmsg_message_get_field(THIS, field, v_idx, &data, &len);
-    if (res == nmsg_res_success) {
+    if (res == nmsg_res_success && data != NULL) {
         res = nmsg_message_get_field_type(THIS, field, &type);
         if (res == nmsg_res_success) {
             // mXPUSHs(newSV(0));
@@ -1189,7 +1144,7 @@ get_field_by_idx(THIS, f_idx, v_idx = 0)
     res = nmsg_message_get_field_by_idx(THIS, f_idx, v_idx, &data, &len);
     if (res == nmsg_res_success) {
         res = nmsg_message_get_field_type_by_idx(THIS, f_idx, &type);
-        if (res == nmsg_res_success) {
+        if (res == nmsg_res_success && data != NULL) {
             // mXPUSHs(newSV(0));
             // _xs_field_to_sv(aTHX_ data, len, type, ST(0));
             mXPUSHs(_xs_field_to_sv(aTHX_ data, len, type));
@@ -1211,7 +1166,7 @@ get_field_vals_by_idx(THIS, f_idx)
     if (res == nmsg_res_success) {
         for (i = 0; i >= 0; i++) {
             res = nmsg_message_get_field_by_idx(THIS, f_idx, i, &data, &len);
-            if (res != nmsg_res_success)
+            if (res != nmsg_res_success || data == NULL)
                 break;
             // mXPUSHs(newSV(0));
             // _xs_field_to_sv(aTHX_ data, len, type, ST(i));

@@ -54,10 +54,10 @@ $From[NMSG_FT_IP    ] = sub { \&_from_ip     };
 $From[NMSG_FT_ENUM  ] = sub {
   my $idx = shift;
   sub {
-    my($val, $msg) = @_;
-    if (!/^\d+$/) {
+    my($val, $class) = @_;
+    if ($val !~ /^\d+$/) {
       my $name = $val;
-      $val = $msg->enum_name_to_value_by_idx($idx, $name);
+      $val = $class->_class_msg->enum_name_to_value_by_idx($idx, $name);
       croak "unknown enum value '$name'" unless defined $val;
     }
     $val;
@@ -91,6 +91,15 @@ sub _to_ip { length $_[0] > 4 ? ipv6_n2x($_[0]) : inet_ntoa($_[0]) }
 $To[NMSG_FT_INT64 ] = sub { \&_to_int64  };
 $To[NMSG_FT_UINT64] = sub { \&_to_uint64 };
 $To[NMSG_FT_IP    ] = sub { \&_to_ip     };
+$To[NMSG_FT_ENUM  ] = sub {
+  my $idx = shift;
+  sub {
+    my($val, $class) = @_;
+    my $name = $class->_class_msg->enum_value_to_name_by_idx($idx, $val);
+    croak "unknown enum value '$val'" unless defined $name;
+    $name;
+  };
+};
 
 ###
 

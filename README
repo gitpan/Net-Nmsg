@@ -1,4 +1,4 @@
-Net-Nmsg version 0.07
+Net-Nmsg version 0.08
 =====================
 
 Net::Nmsg is a perl binding to libnmsg, the reference implementation of

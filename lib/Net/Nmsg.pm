@@ -29,7 +29,7 @@ use base qw( Exporter DynaLoader );
 sub dl_load_flags { 0x01 } # global option
 
 BEGIN {
-  $VERSION = '0.07';
+  $VERSION = '0.08';
   bootstrap Net::Nmsg $VERSION;
 }
 
@@ -214,6 +214,8 @@ package Net::Nmsg::XS::output;
 
 use base qw( Net::Nmsg::XS::base_xs );
 
+use Carp;
+
 sub is_file  { }
 sub is_sock  { }
 sub is_pres  { }
@@ -221,7 +223,11 @@ sub is_cb    { }
 
 sub write {
   my $self = shift;
-  map { _write($self, $_->msg) } @_;
+  for my $m (@_) {
+    eval { _write($self, $m->msg) };
+    croak $@ if $@;
+    $m->_flush;
+  }
 }
 
 ###
@@ -309,6 +315,7 @@ Net::Nmsg - Perl extension for the NMSG message interchange library
     my $msg = shift;
     print join(' ', "msg $c :", $msg->msgtype), "\n";
     print $msg->as_str, "\n\n";
+    ++$c;
   };
 
   $io->add_input('infile.nmsg');

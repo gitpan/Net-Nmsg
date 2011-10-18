@@ -171,7 +171,10 @@ sub open_cb {
 
 sub write {
   push(@_, $_) if @_ == 1 && defined $_;
-  (shift->_xs || croak "attempted write on closed output")->write(@_);
+  eval {
+    (shift->_xs || croak "attempted write on closed output")->write(@_);
+  };
+  croak $@ if $@;
 }
 
 ###
@@ -197,6 +200,7 @@ Net::Nmsg::Output - Perl interface for nmsg outputs
   while (my $msg = <$in>) {
     print "got message $c $msg\n";
     $out->write($msg);
+    ++$c;
   }
 
   # alternatively:
@@ -204,6 +208,7 @@ Net::Nmsg::Output - Perl interface for nmsg outputs
   my $cb = sub {
     print "got message $c ", shift, "\n"
     $out->write($msg);
+    ++$c;
   };
   $in->loop($cb);
 

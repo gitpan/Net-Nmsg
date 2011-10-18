@@ -34,6 +34,8 @@ t/dat/empty.txt
 
 examples/nmsg_cat.pl
 examples/nmsg_channel_dump.pl
+examples/nmsg_encode_hello_client.pl
+examples/nmsg_encode_hello_server.pl
 examples/nmsg_file_dump.pl
 examples/nmsg_io_callback.pl
 examples/nmsg_message.pl

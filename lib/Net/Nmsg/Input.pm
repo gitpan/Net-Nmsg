@@ -270,6 +270,7 @@ Net::Nmsg::Input - Perl interface for nmsg inputs
   while (my $msg = $in->read) {
     print "got message $c $msg\n";
     $out->write($msg);
+    +$c;
   }
 
   # alternatively:
@@ -277,6 +278,7 @@ Net::Nmsg::Input - Perl interface for nmsg inputs
   my $cb = sub {
     print "got message $c ", shift, "\n"
     $out->write($msg);
+    ++$c;
   };
   $in->loop($cb);
 

@@ -18,12 +18,17 @@ use Carp;
 
 ###
 
-use Net::Nmsg::Util qw( :field );
+use Net::Nmsg::Util qw( :field :alias );
 use Net::Nmsg::Typemap;
 
 use constant MSG   => 0;
 use constant STAGE => 1;
 use constant DIRTY => 2;
+use constant SEC   => 3;
+use constant NSEC  => 4;
+use constant SRC   => 5;
+use constant OPR   => 6;
+use constant GRP   => 7;
 
 my $Input_Typemap_Class  = 'Net::Nmsg::Typemap::Input';
 my $Output_Typemap_Class = 'Net::Nmsg::Typemap::Output';
@@ -41,7 +46,6 @@ sub modules { @Modules }
     my($vid, $mid, $vname, $mname) = @$m;
     my $class = join('::', $pkg, $vname, $mname);
     push(@Modules, $class);
-    #print STDERR "ASSIGN *$class\::ISA\n";
     eval <<__CLASS;
 package $class;
 
@@ -59,6 +63,10 @@ die \$@ if \$@;
 
 sub _new_msg { $XS_Msg_Class->init(\$Mod) }
 
+my \$Class_Msg;
+
+sub _class_msg { \$Class_Msg ||= _new_msg() }
+
 __CLASS
   die "class construction failed : $@" if $@;
   $class->_load_methods;
@@ -67,13 +75,19 @@ __CLASS
 
 sub new {
   my $self = bless [], shift;
-  $self->[MSG] = shift;
+  if (@_) {
+    $self->[MSG] = $_[0];
+    $self->_unpack;
+  }
   $self;
 }
 
 sub msg {
   my $self = shift;
-  $self->_pack if $self->[DIRTY];
+  if ($self->[DIRTY]) {
+    $self->[MSG] = $self->_new_msg;
+    $self->_pack;
+  }
   $self->[MSG];
 }
 
@@ -84,26 +98,43 @@ sub _msg {
 
 sub source {
   my $self = shift;
-  $self->_msg->set_source(shift) if @_;
-  $self->_msg->get_source()
+  if (@_) {
+    $self->[DIRTY] ||= $self->_unpack;
+    $self->[SRC] = shift;
+  }
+  $self->[SRC];
 }
 
 sub operator {
   my $self = shift;
-  $self->_msg->set_operator(shift) if @_;
-  $self->_msg->get_operator()
+  if (@_) {
+    $self->[DIRTY] ||= $self->_unpack;
+    my($k, $v) = operator_lookup(shift);
+    $self->[OPR] = $k;
+  }
+  my($k, $v) = operator_lookup($self->[OPR]);
+  $v || '<UNKNOWN>';
 }
 
 sub group {
   my $self = shift;
-  $self->_msg->set_group(shift) if @_;
-  $self->_msg->get_group()
+  if (@_) {
+    $self->[DIRTY] ||= $self->_unpack;
+    my($k, $v) = group_lookup(shift);
+    $self->[GRP] = $k;
+  }
+  my($k, $v) = group_lookup($self->[GRP]);
+  $v || '<UNKNOWN>';
 }
 
 sub time {
   my $self = shift;
-  $self->_msg->set_time(@_) if @_;
-  $self->_mgs->get_time();
+  if (@_) {
+    $self->[DIRTY] ||= $self->_unpack;
+    $self->[SEC]  = shift || 0;
+    $self->[NSEC] = shift || 0;
+  }
+  return($self->[SEC], $self->[NSEC]);
 }
 
 sub fields_present {
@@ -122,7 +153,7 @@ sub fields_present {
 
 ###
 
-sub header_as_str {
+sub headers_as_str {
   my $self = shift;
   my $msg  = $self->_msg || return '';
   my($ts, $nsec) = $msg->get_time;
@@ -143,13 +174,13 @@ sub header_as_str {
 sub as_str {
   my $self = shift;
   my $eol  = shift || "\n";
-  join($eol, $self->header_as_str, $self->_msg->message_to_pres($eol));
+  join($eol, $self->headers_as_str, $self->_msg->message_to_pres($eol));
 }
 
 sub _debug_as_str {
   my $self   = shift;
   my $eol    = shift || "\n";
-  my @str    = $self->header_as_str;
+  my @str    = $self->headers_as_str;
   my $fields = $self->_fields;
   my $flags  = $self->_flags;
   for my $i (0 .. $#$fields) {
@@ -165,64 +196,125 @@ sub _debug_as_str {
 
 ###
 
+sub _flush { $_[0]->[MSG] = undef }
+
 sub _unpack {
   return $_[0]->[STAGE] if $_[0]->[STAGE];
-  my $msg = $_[0]->[MSG] ||= $_[0]->_new_msg;
+  my $self = $_[0];
   my @unpacked;
-  for my $i (0 .. $_[0]->count - 1) {
-    my @v = $msg->get_field_vals_by_idx($i);
-    #print STDERR "UNPACK[$i] : ", Dumper(\@v), "\n";
-    push(@unpacked, @v ? \@v : undef);
+  $#unpacked = $self->count - 1;
+  if (my $msg = $self->[MSG]) {
+    @{$self}[SEC,NSEC] = $msg->get_time();
+    $self->[SRC] = $msg->get_source();
+    $self->[OPR] = $msg->get_operator();
+    $self->[GRP] = $msg->get_group();
+    for my $i (0 .. $#unpacked) {
+      my @v = $msg->get_field_vals_by_idx($i);
+      $unpacked[$i] = @v ? \@v : undef;
+    }
   }
-  $_[0]->[STAGE] = \@unpacked;
+  $self->[STAGE] = \@unpacked;
 }
 
 sub _pack {
-  my $unp   = $_[0]->[DIRTY] || return;
-  my $flags = $_[0]->_flags;
-  my $msg   = $_[0]->[MSG] ||= $_[0]->_new_msg;
+  my $unp = $_[0]->[DIRTY];
+  my $msg = $_[0]->[MSG];
+  return if $msg && !$unp;
+  my $self = $_[0];
+  $unp ||= $self->[STAGE];
+  $msg = $_[0]->[MSG] = $self->_new_msg;
+  $msg->set_time(@{$self}[SEC, NSEC])
+    if defined $self->[SEC];
+  $msg->set_source($self->[SRC])
+    if defined $self->[SRC];
+  $msg->set_operator($self->[OPR])
+    if defined $self->[OPR];
+  $msg->set_group($self->[GRP])
+    if defined $self->[GRP];
+  my $flags = $self->_flags;
   for my $i (0 .. $#$unp) {
     my $val = $unp->[$i];
-    croak "field " . $_[0]->fields->[$i] . " is required"
-      unless defined $val || !($flags->[$i] & NMSG_FF_REQUIRED);
-    for my $f (0 ..$#$val) {
-      #print STDERR "PACK[$i:$f] : ", $val->[$f], "\n";
-      $msg->set_field_by_idx($i, $f, $val->[$f]);
+    if (defined $val) {
+      for my $f (0 .. $#$val) {
+        $msg->set_field_by_idx($i, $f, $val->[$f]);
+      }
     }
   }
-  $_[0]->[DIRTY] = undef;
+  $self->[DIRTY] = undef;
 }
 
 ###
 
+sub _getter {
+  my($class, $idx, $flags, $mapper) = @_;
+  my $repeated = $flags & NMSG_FF_REPEATED;
+  if ($repeated) {
+    return sub {
+      my @val;
+      my $unp = $_[0]->[STAGE] ||= $_[0]->_unpack;
+      my $fval = $unp->[$idx];
+      if (!$fval || !@$fval) {
+        $fval = [];
+        @$fval = $class->_class_msg->get_field_by_idx($idx);
+      }
+      if ($mapper) {
+        @val = map { $mapper->($_, $class) } @$fval;
+      }
+      else {
+        @val = @$fval;
+      }
+      wantarray ? @val : \@val;
+    };
+  }
+  else {
+    return sub {
+      my $unp = $_[0]->[STAGE] ||= $_[0]->_unpack;
+      my $val = $unp->[$idx];
+      if (!$val || !@$val) {
+        $val = [];
+        @$val = $class->_class_msg->get_field_by_idx($idx);
+      }
+      return unless defined($val = $val->[0]);
+      $mapper ? $mapper->($val, $class) : $val;
+    };
+  }
+}
+
 sub _setter {
   my($class, $idx, $flags, $mapper) = @_;
   my $repeated = $flags & NMSG_FF_REPEATED;
-  if ($mapper) {
+  if ($repeated) {
     return sub {
       my $self = shift;
-      @_ || return;
       my $unp = $self->[DIRTY] ||= $self->_unpack;
-      my $msg = $self->[MSG]   ||= $self->_new_msg;
       my $val = $unp->[$idx]   ||= [];
-      @_ = pop if @_ > 1 && !$repeated;
-      @$val = grep { defined $_ }
-              map  { $mapper->($_, $msg) }
-              grep { defined $_ }
-              @_;
-      $unp->[$idx] = undef unless @$val;
+      @$val = ();
+      return if @_ == 1 && ! defined $_[0];
+      if ($mapper) {
+        @$val = map { defined $_ ? $mapper->($_, $class)
+                                 : croak("undefined value is assignment\n")
+                    }
+                @_;
+      }
+      else {
+        @$val = @_;
+      }
     };
   }
   else {
     return sub {
       my $self = shift;
-      @_ || return;
       my $unp = $self->[DIRTY] ||= $self->_unpack;
-      my $msg = $self->[MSG]   ||= $self->_new_msg;
       my $val = $unp->[$idx]   ||= [];
       @_ = pop if @_ > 1 && !$repeated;
-      @$val = grep { defined $_ } @_;
-      $unp->[$idx] = undef unless @$val;
+      if (defined $_[0]) {
+        if ($mapper) {
+          $val->[0] = $mapper->($_[0], $class);
+        }
+        else {
+          $val->[0] = $_[0];
+        }
+      }
     };
   }
 }
@@ -234,98 +326,20 @@ sub _pusher {
     my $self = shift;
     @_ || return;
     my $unp = $self->[DIRTY] ||= $self->_unpack;
-    my $msg = $self->[MSG]   ||= $self->_new_msg;
     my $val = $unp->[$idx]   ||= [];
-    @_ = grep { defined $_ } @_;
-    @_ || return;
-    #print STDERR "SUPPOSED ADD $idx => ", join(', ', @_), "\n";
+    $self->[MSG] = undef;
     if ($mapper) {
-      push(@$val, grep { defined $_ } map { $mapper->($_, $msg) } @_);
+      push(@$val,
+           map { defined $_ ? $mapper->($_, $class)
+                            : croak("undefined value in assignment\n")
+               }
+           @_
+      );
     }
     else {
       push(@$val, @_);
     }
-    $unp->[$idx] = undef unless @$val;
   };
-}
-
-sub _getter {
-  my($class, $idx, $flags, $mapper) = @_;
-  my $repeated = $flags & NMSG_FF_REPEATED;
-  if ($mapper) {
-    if ($repeated) {
-      # plural mapped
-      return sub {
-        my $msg = $_[0]->[MSG] ||= $_[0]->_new_msg;
-        my @val;
-        if (my $unp = $_[0]->[STAGE]) {
-          # use unpacked if available
-          if ($unp->[$idx]) {
-            @val = map { $mapper->($_, $msg) } @{$unp->[$idx]};
-          }
-        }
-        else {
-          # otherwise query the struct directly
-          @val = map { $mapper->($_, $msg) }
-                 $msg->get_field_vals_by_idx($idx);
-        }
-        wantarray ? @val : \@val;
-      };
-    }
-    else {
-      # singular mapped
-      return sub {
-        my $msg = $_[0]->[MSG] ||= $_[0]->_new_msg;
-        my $val;
-        if (my $unp = $_[0]->[STAGE]) {
-          # use unpacked if available
-          return unless defined($val = $unp->[$idx]);
-          return unless defined($val = $val->[0]);
-        }
-        else {
-          # otherwise query the struct directly
-          return unless defined($val = $msg->get_field_by_idx($idx, 0));
-        }
-        return $mapper->($val, $msg);
-      };
-    }
-  }
-  else {
-    if ($repeated) {
-      # plural unmapped
-      return sub {
-        my $msg = $_[0]->[MSG] ||= $_[0]->_new_msg;
-        my @val;
-        if (my $unp = $_[0]->[STAGE]) {
-          # use unpacked if available
-          @val = @{ $unp->[$idx] || [] };
-        }
-        else {
-          # otherwise query the struct directly
-          @val = $msg->get_field_vals_by_idx($idx);
-        }
-        wantarray ? @val : \@val;
-      };
-    }
-    else {
-      # singular unmapped
-      return sub {
-        my $msg = $_[0]->[MSG] ||= $_[0]->_new_msg;
-        my $val;
-        if (my $unp = $_[0]->[STAGE]) {
-          # use unpacked if available
-          if ($val = $unp->[$idx]) {
-            $val = $val->[0];
-          }
-        }
-        else {
-          # otherwise query the struct directly
-          $val = $msg->get_field_by_idx($idx, 0);
-        }
-        defined $val ? $val : ();
-      };
-    }
-  }
 }
 
 ###
@@ -464,28 +478,28 @@ The message type of this message module.
 
 =item source([source])
 
-Return or set the source ID of this message.
+Return or set the source ID of this nmsg message.
 
 =item operator([operator])
 
-Return or set the operator ID of this message.
+Return or set the operator ID of this nmsg message.
 
 =item group([group])
 
-Return or set the group of this message.
+Return or set the group of this nmsg message.
 
 =item time([time_sec, time_nsec])
 
-Return or set the timestamp of this message. Accepts and returns
+Return or set the timestamp of this nmsg message. Accepts and returns
 two integer values representing seconds and nanoseconds.
 
 =item fields()
 
-A list of possible field names for this message module.
+A list of possible fields defined for this message module.
 
 =item fields_present()
 
-A list of fields actually present in a message instance.
+A list of fields actually defined for a message module.
 
 =item headers_as_str()
 
