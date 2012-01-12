@@ -1,4 +1,4 @@
-Net-Nmsg version 0.08
+Net-Nmsg version 0.09
 =====================
 
 Net::Nmsg is a perl binding to libnmsg, the reference implementation of
@@ -14,8 +14,8 @@ documentation describes the format as:
   nmsgtool provides a command line interface to control the
   transmission, storage, creation, and conversion of NMSG payloads.
 
-The minimum version of NMSG required is 0.6.14. This release was tested
-on NMSG version 0.6.15.
+This release was tested on NMSG version 0.6.17.
+The minimum version of NMSG required is 0.6.14.
 
 
 INSTALLATION

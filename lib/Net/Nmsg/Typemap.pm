@@ -36,7 +36,7 @@ use base qw( Net::Nmsg::Typemap );
 
 use Net::Nmsg::Util qw( :field );
 
-use Math::Int64 qw( int64_to_native uint64_to_native );
+use Math::Int64 qw( int64_to_native uint64_to_native int64 uint64 );
 use NetAddr::IP::Util qw( inet_aton ipv6_aton );
 
 my @From;

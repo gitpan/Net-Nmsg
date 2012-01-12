@@ -438,7 +438,7 @@ Net::Nmsg::Msg - Perl interface for messages from the NMSG library
   # methods specific to the fields for that type. For example:
 
   my $o = Net::Nmsg::Output->open('127.0.0.1/9430');
-  my $m = Net::Nmsg::ISC::ipconn->new();
+  my $m = Net::Nmsg::Msg::ISC::ipconn->new();
   for my $i (0 .. 99) {
     $m->set_srcip("127.0.0.$i");
     $m->set_dstip("127.1.0.$i");

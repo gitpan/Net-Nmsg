@@ -255,6 +255,7 @@ Control whether or not the output socket is buffered (default: 1).
 Enable or disable zlib compression of output (nmsg only)
 
 =item rate
+
 =item freq
 
 Limit the payload output rate

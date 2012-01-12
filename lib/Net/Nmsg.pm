@@ -29,7 +29,7 @@ use base qw( Exporter DynaLoader );
 sub dl_load_flags { 0x01 } # global option
 
 BEGIN {
-  $VERSION = '0.08';
+  $VERSION = '0.09';
   bootstrap Net::Nmsg $VERSION;
 }
 

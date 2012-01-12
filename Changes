@@ -1,5 +1,9 @@
 Revision history for Net::Nmsg
 
+0.09 Thu Jan 12 14:08:43 EST 2012
+    - correctly import some of the Math::Int64 routines
+    - doc tweaks
+
 0.08  Tue Oct 18 16:52:32 EDT 2011
     - moved to lazy evaluation/creation of xs messages
     - operator/group aliases updated
