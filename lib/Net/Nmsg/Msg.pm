@@ -1,4 +1,4 @@
-# Copyright (C) 2010-2011 by Carnegie Mellon University
+# Copyright (C) 2010-2013 by Carnegie Mellon University
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, as published by
@@ -46,7 +46,19 @@ sub modules { @Modules }
     my($vid, $mid, $vname, $mname) = @$m;
     my $class = join('::', $pkg, $vname, $mname);
     push(@Modules, $class);
-    eval <<__CLASS;
+    my @classes = $class;
+    if ($vname eq 'base') {
+      # backwards compat for vendor string 'ISC'
+      # don't put these in @Modules
+      push(@classes, join('::', $pkg, 'ISC', $mname));
+    }
+    elsif ($vname eq 'ISC') {
+      # forwards compat so new examples will work with
+      # older libnmsg installs
+      push(@classes, join('::', $pkg, 'base', $mname));
+    }
+    for $class (@classes) {
+      eval <<__CLASS;
 package $class;
 
 use base qw( $pkg );
@@ -68,8 +80,9 @@ my \$Class_Msg;
 sub _class_msg { \$Class_Msg ||= _new_msg() }
 
 __CLASS
-  die "class construction failed : $@" if $@;
-  $class->_load_methods;
+    die "class construction failed : $@" if $@;
+    $class->_load_methods;
+    }
   }
 }
 
@@ -162,7 +175,7 @@ sub headers_as_str {
   my @str = sprintf("[%04d-%02d-%02d %02d:%02d:%02d.%09d]",
                     $y, $m, $d, $h, $min, $s, $nsec);
   push(@str, sprintf("[%d:%d %s %s]",
-             $self->VID, $self->MID, $self->type, $self->vendor));
+             $self->VID, $self->MID, $self->vendor, $self->type));
   my $src = $msg->get_source;
   push(@str, $src ? sprintf("[%08x]", $src) : '[]');
   join(' ',
@@ -577,7 +590,7 @@ Matthew Sisk, E<lt>sisk@cert.orgE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2010-2011 by Carnegie Mellon University
+Copyright (C) 2010-2014 by Carnegie Mellon University
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, as published by

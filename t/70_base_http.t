@@ -6,7 +6,7 @@ use Test::More tests => 256;
 
 use File::Temp;
 
-use constant MSGTYPE_CLASS => 'Net::Nmsg::Msg::ISC::http';
+use constant MSGTYPE_CLASS => 'Net::Nmsg::Msg::base::http';
 
 use_ok(IO_CLASS);
 use_ok(OUTPUT_CLASS);

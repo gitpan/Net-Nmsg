@@ -1,4 +1,4 @@
-# Copyright (C) 2010-2011 by Carnegie Mellon University
+# Copyright (C) 2010-2013 by Carnegie Mellon University
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, as published by
@@ -42,6 +42,10 @@ my %Defaults = (
   rate     => NMSG_DEFAULT_SO_RATE,
   freq     => NMSG_DEFAULT_SO_FREQ,
   bufsz    => undef, # depends on stream/socket
+
+  # socket
+  broadcast => 0,
+  sndbuf    => NMSG_DEFAULT_SO_SNDBUF,
 
   # pres
   endline => $/,
@@ -104,7 +108,12 @@ sub _init_output {
 }
 
 sub open {
-  my($self, $spec, $fatal, %opt) = shift->_open_init(@_);
+  my $self = shift;
+  my $spec = shift;
+  if (@_ % 2 && $_[0] =~ /^\d+$/) {
+    $spec = join('/', $spec, shift);
+  }
+  ($self, $spec, my($fatal, %opt)) = $self->_open_init($spec, @_);
   if (Net::Nmsg::Util::is_callback($spec)) {
     return $self->open_cb($spec, %opt)
       || ($fatal ? croak $self->error : return);
@@ -227,7 +236,8 @@ Net::Nmsg::XS::output extension.
 Creates and opens new output object. The output can be specified as a
 file name or handle, callback reference, or socket.
 
-Available options:
+Options, where applicable, also apply to the more specific
+open calls detailed further below. Available options:
 
 =over
 
@@ -260,11 +270,18 @@ Enable or disable zlib compression of output (nmsg only)
 
 Limit the payload output rate
 
-
 =item bufsz
 
 Set the buffer size for the output (the default value is based on
 whether the output is a file or socket)
+
+=item broadcast
+
+Set broadcast mode (socket only)
+
+=item sndbuf
+
+Set send buffer size (socket only)
 
 =item endline
 
@@ -272,10 +289,14 @@ Set the line ending character for presentation outputs.
 
 =back
 
-=item open_nmsg($spec, %options)
+=item open_file($spec, %options)
 
-Opens an output in nmsg format, as specified by file name, file handle,
-socket specification, or socket handle.
+Opens an output in nmsg format, as specified by file name, or file handle.
+
+=item open_sock($spec, %options)
+
+Opens an output socket as specified by "host/port" or socket handle.
+The host and port can also be provided as separate arguments.
 
 =item open_pres($spec, %options)
 
@@ -352,7 +373,7 @@ Matthew Sisk, E<lt>sisk@cert.orgE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2010-2011 by Carnegie Mellon University
+Copyright (C) 2010-2014 by Carnegie Mellon University
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, as published by

@@ -1,6 +1,12 @@
 Revision history for Net::Nmsg
 
-0.09 Thu Jan 12 14:08:43 EST 2012
+0.10  Wed Mar 19 14:12:45 EDT 2014
+    - migrated vendor 'ISC' to 'base' (ISC deprecated)
+    - fixed broadcast option for output sockets
+    - updated examples
+    - vendor/type render order in headers fixed
+
+0.09  Thu Jan 12 14:08:43 EST 2012
     - correctly import some of the Math::Int64 routines
     - doc tweaks
 

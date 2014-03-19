@@ -1,4 +1,4 @@
-# Copyright (C) 2010-2011 by Carnegie Mellon University
+# Copyright (C) 2010-2013 by Carnegie Mellon University
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, as published by
@@ -29,7 +29,7 @@ use base qw( Exporter DynaLoader );
 sub dl_load_flags { 0x01 } # global option
 
 BEGIN {
-  $VERSION = '0.09';
+  $VERSION = '0.10';
   bootstrap Net::Nmsg $VERSION;
 }
 
@@ -172,7 +172,6 @@ sub open_pres {
 
 sub is_file  { }
 sub is_sock  { }
-sub is_pres  { }
 sub is_pcap  { }
 
 ###
@@ -190,14 +189,6 @@ package Net::Nmsg::XS::input_sock;
 use base qw( Net::Nmsg::XS::input );
 
 use constant is_sock => 1;
-
-###
-
-package Net::Nmsg::XS::input_pres;
-
-use base qw( Net::Nmsg::XS::input );
-
-use constant is_pres => 1;
 
 ###
 
@@ -376,7 +367,7 @@ Matthew Sisk, E<lt>sisk@cert.orgE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2010-2011 by Carnegie Mellon University
+Copyright (C) 2010-2014 by Carnegie Mellon University
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, as published by

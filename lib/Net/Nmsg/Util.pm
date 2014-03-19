@@ -1,4 +1,4 @@
-# Copyright (C) 2010-2011 by Carnegie Mellon University
+# Copyright (C) 2010-2013 by Carnegie Mellon University
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, as published by
@@ -409,6 +409,8 @@ sub is_file   { @_ && -f shift }
 
 sub is_callback { @_ && ref $_[0] && ref $_[0] eq 'CODE' }
 
+sub is_filehandle { @_ && ref $_[0] && defined(fileno($_[0])) }
+
 sub looks_like_socket {
   return 0 unless @_;
   return 0 if is_callback(@_);
@@ -520,6 +522,7 @@ everything, use ':all'. The following tag groups are also available:
   is_interface($name)
   is_socket($handle)
   is_file($handle_or_name)
+  is_filehandle($handle)
   is_channel($channel)
   expand_socket_spec($spec)
 
@@ -643,7 +646,7 @@ Matthew Sisk, E<lt>sisk@cert.orgE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2010-2011 by Carnegie Mellon University
+Copyright (C) 2010-2013 by Carnegie Mellon University
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, as published by

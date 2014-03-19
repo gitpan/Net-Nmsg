@@ -8,7 +8,7 @@ use Net::Nmsg::Msg;
 
 my $o = Net::Nmsg::Output->open('127.0.0.1/9430');
 
-my $m = Net::Nmsg::Msg::ISC::ipconn->new();
+my $m = Net::Nmsg::Msg::base::ipconn->new();
 
 for my $i (0 .. 100) {
   $m->set_srcip("127.0.0.$i");

@@ -25,6 +25,6 @@ sub process_msg_ch202 {
 my $io = Net::Nmsg::IO->new;
 
 $io->add_input_chalias('ch202');
-$io->set_filter_msgtype(ISC => 'ncap');
+$io->set_filter_msgtype(base => 'ncap');
 $io->add_output_cb(\&process_msg_ch202);
 $io->loop;

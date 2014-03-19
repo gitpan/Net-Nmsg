@@ -1,4 +1,4 @@
-# Copyright (C) 2010-2011 by Carnegie Mellon University
+# Copyright (C) 2010-2013 by Carnegie Mellon University
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, as published by
@@ -65,17 +65,8 @@ sub _get_opt {
 sub _get_inner_opt {
   my $self = shift;
   my($io, $opt) = splice(@_, 0, 2);
-  if ($io) {
-    my $m = 'get_' . $opt;
-    my $v;
-    eval { $v = $io->$m() };
-    if ($@) {
-      croak $@ if $@ !~ /locate\s+object\s+method/i;
-    }
-    else {
-      return $self->_set_opt($opt, $v);
-    }
-  }
+  my $m = 'get_' . $opt;
+  return $self->_set_opt($opt, $io->$m()) if $io && UNIVERSAL::can($io => $m);
   $self->_get_opt($opt);
 }
 

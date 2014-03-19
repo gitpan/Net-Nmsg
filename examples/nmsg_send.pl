@@ -22,7 +22,7 @@ my %template = (
 my $count = 1;
 
 my $o = Net::Nmsg::Output->open($dest);
-my $m = Net::Nmsg::Msg::ISC::email->new;
+my $m = Net::Nmsg::Msg::base::email->new;
 
 for my $i (0 .. $count-1) {
   $m->set_type($template{type});

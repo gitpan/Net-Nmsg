@@ -2,11 +2,11 @@ use FindBin;
 use lib $FindBin::Bin;
 use nmsgtest;
 
-use Test::More tests => 296;
+use Test::More tests => 216;
 
 use File::Temp;
 
-use constant MSGTYPE_CLASS => 'Net::Nmsg::Msg::ISC::email';
+use constant MSGTYPE_CLASS => 'Net::Nmsg::Msg::base::ipconn';
 
 use_ok(IO_CLASS);
 use_ok(OUTPUT_CLASS);
@@ -17,27 +17,13 @@ use Net::Nmsg::Util qw( :sniff );
 
 my($count, $total) = (0, 20);
 
-my %template = (
-  srcip   => '127.0.0.1',
-  srchost => 'localhost.localdomain',
-  helo    => 'helo',
-  from    => 'foo@bar.example.com',
-  rcpt    => [qw(
-    bar%d@baz.example.com
-    baz%d@baz.example.com
-  )],
-);
-
 sub _result_ok {
   my($m, $i) = @_;
   isa_ok($m, MSGTYPE_CLASS);
-  for my $f (qw( type helo srchost srcip from )) {
-    my $meth = "get_$f";
-    is($m->$meth, $template{$f}, "msg[$i] $f");
-  }
-  my @tgt = map { sprintf($_, $i) } @{$template{rcpt}};
-  my @src = $m->get_rcpt;
-  is_deeply(\@src, \@tgt, "msg[$i] rcpt");
+  is($m->get_srcip,   "127.0.0.$i", "msg[$i] srcip");
+  is($m->get_dstip,   "127.1.0.$i", "msg[$i] dstip");
+  is($m->get_srcport, $i,           "msg[$i] srcport");
+  is($m->get_dstport, 65535 - $i,   "msg[$i] dstport");
 }
 
 sub _new_ok {
@@ -55,12 +41,10 @@ $o->open_file($fh);
 ok($o->opened, "output opened");
 my $m = _new_ok(MSGTYPE_CLASS);
 for my $i (0 .. $total-1) {
-  $m->set_type($template{type});
-  $m->set_helo($template{helo});
-  $m->set_srchost($template{srchost});
-  $m->set_srcip($template{srcip});
-  $m->set_from($template{from});
-  $m->set_rcpt(map { sprintf($_, $i) } @{$template{rcpt}});
+  $m->set_srcip("127.0.0.$i");
+  $m->set_dstip("127.1.0.$i");
+  $m->set_srcport($i);
+  $m->set_dstport(65535 - $i);
   $o->write($m);
   ++$count;
 }

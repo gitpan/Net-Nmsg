@@ -14,7 +14,7 @@ use Email::MIME;
 use constant EMAIL_TYPE => 'unknown';
 
 my $hostname = hostname;
-my $nmsgtool = "nmsgtool -d -d -V ISC -T email -f - -w " .
+my $nmsgtool = "nmsgtool -d -d -V base -T email -f - -w " .
                "/var/spool/isc-sie/new/$hostname" .
                " -t 60 -k nmsg-sie-relay nmsg-sie-ch25";
 

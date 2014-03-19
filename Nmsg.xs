@@ -1,6 +1,6 @@
 /*
 **
-** Copyright (C) 2010-2011 by Carnegie Mellon University
+** Copyright (C) 2010-2013 by Carnegie Mellon University
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License, as published by
@@ -788,12 +788,12 @@ destroy(THIS)
     nmsg_input_close(&THIS);
 
 Net::Nmsg::XS::input_file
-nmsg_input_open_file(CLASS, fd)
+nmsg_input_open_file(CLASS, fh)
     const char   *CLASS
-    PerlIO *fd
+    PerlIO *fh
     CODE:
     PERL_UNUSED_VAR(CLASS);
-    RETVAL = nmsg_input_open_file(PerlIO_fileno(fd));
+    RETVAL = nmsg_input_open_file(PerlIO_fileno(fh));
     OUTPUT:
     RETVAL
 
@@ -804,23 +804,6 @@ nmsg_input_open_sock(CLASS, fh)
     CODE:
     PERL_UNUSED_VAR(CLASS);
     RETVAL = nmsg_input_open_sock(PerlIO_fileno(fh));
-    OUTPUT:
-    RETVAL
-
-Net::Nmsg::XS::input_pres
-_open_pres(CLASS, fh, vid, mid)
-    const char       *CLASS
-    PerlIO     *fh
-    unsigned    vid
-    unsigned    mid
-    PREINIT:
-    nmsg_msgmod_t   mod;
-    CODE:
-    PERL_UNUSED_VAR(CLASS);
-    mod = nmsg_msgmod_lookup(vid, mid);
-    if (mod == NULL)
-        croak("unknown vendor id '%d' or message type '%d'", vid, mid);
-    RETVAL = nmsg_input_open_pres(PerlIO_fileno(fh), mod);
     OUTPUT:
     RETVAL
 

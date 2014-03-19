@@ -16,7 +16,7 @@ if (@ARGV && @ARGV != 2) {
 my $o = @ARGV ? Net::Nmsg::Output->open_sock(@ARGV) :
                 Net::Nmsg::Output->open_sock('127.0.0.1', 9430);
 
-my $m = Net::Nmsg::Msg::ISC::encode->new();
+my $m = Net::Nmsg::Msg::base::encode->new();
 
 my $itermax = 2;
 

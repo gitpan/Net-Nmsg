@@ -1,4 +1,4 @@
-# Copyright (C) 2010-2011 by Carnegie Mellon University
+# Copyright (C) 2010-2013 by Carnegie Mellon University
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, as published by
@@ -280,16 +280,6 @@ sub add_input_sock {
   }
 }
 
-sub add_input_pres {
-  my $self = shift;
-  my $io   = shift;
-  if ($self->_is_io($io)) {
-    croak "not a pres file io $io" unless $io->is_pres;
-    return $self->_add_input_io($io, @_);
-  }
-  $self->_add_input_io($self->IO_INPUT->open_pres($io, @_), @_);
-}
-
 sub add_input_pcap {
   my $self = shift;
   my $io   = shift;
@@ -544,12 +534,6 @@ or file handle.
 Add a NMSG socket as an input, specified either as a socket
 specification, socket handle, or host/port pair.
 
-=item add_input_pres($file, vendor => $v, msgtype => $m, %opt)
-
-Add a file in presentation format as an input, specified either
-as a file name or handle. The I<vendor> and I<msgtype> parameters
-are required.
-
 =item add_input_pcap($file, vendor => $v, msgtype => $m, %opt)
 
 Add a file in pcap format as an input, specefied as a file name. The
@@ -601,7 +585,7 @@ Matthew Sisk, E<lt>sisk@cert.orgE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2010-2011 by Carnegie Mellon University
+Copyright (C) 2010-2013 by Carnegie Mellon University
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, as published by

@@ -1,4 +1,4 @@
-# Copyright (C) 2010-2011 by Carnegie Mellon University
+# Copyright (C) 2010-2013 by Carnegie Mellon University
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, as published by
@@ -39,6 +39,9 @@ my %Defaults = (
   filter_group    => undef,
   blocking_io     => 1,
 
+  # socket
+  rcvbuf => NMSG_DEFAULT_SO_RCVBUF,
+
   # pcap
   bpf      => undef,
   snaplen  => NMSG_DEFAULT_SNAPLEN,
@@ -72,7 +75,6 @@ sub set_bpf     { shift->_set_io_opt(bpf     => @_) }
 
 sub is_file  { (shift->_xs || return)->is_file  }
 sub is_sock  { (shift->_xs || return)->is_sock  }
-sub is_pres  { (shift->_xs || return)->is_pres  }
 sub is_pcap  { (shift->_xs || return)->is_pcap  }
 sub is_iface { (shift->_xs || return)->is_iface }
 
@@ -100,10 +102,20 @@ sub _init_input {
 }
 
 sub open {
-  my($self, $spec, $fatal, %opt) = shift->_open_init(@_);
+  my $self = shift;
+  my $spec = shift;
+  if (@_ % 2 && $_[0] =~ /^\d+$/) {
+    $spec = join('/', $spec, shift);
+  }
+  ($self, $spec, my($fatal, %opt)) = $self->_open_init($spec, @_);
   if (Net::Nmsg::Util::looks_like_socket($spec)) {
     #print STDERR "SOCKET $self\n";
     return $self->open_sock($spec, %opt)
+      || ($fatal ? croak $self->error : return);
+  }
+  elsif (Net::Nmsg::Util::is_filehandle($spec)) {
+    #print STDERR "FHND $self\n";
+    return $self->open_file($spec, %opt)
       || ($fatal ? croak $self->error : return);
   }
   elsif (Net::Nmsg::Util::is_file($spec) || ($spec || '') =~ /\.\w+$/) {
@@ -124,9 +136,8 @@ sub open {
         || ($fatal ? croak $self->error : return);
     }
     else {
-      #print STDERR "PRES $self\n";
-      return $self->open_pres($spec, %opt)
-        || ($fatal ? croak $self->error : return);
+      $self->error("unknown input file type $spec");
+      croak $self->error if $fatal;
     }
   }
   elsif (Net::Nmsg::Util::is_interface($spec)) {
@@ -167,22 +178,6 @@ sub open_sock {
   my $xs = $self->INPUT_XS->open_sock($io);
   $self->_init_input($spec, $io, $xs, %opt);
   $self;
-}
-
-sub open_pres {
-  my($self, $spec, $fatal, %opt) = shift->_open_init(@_);
-  if (! $opt{filter_msgtype}) {
-    $self->error("filter_vendor and filter_msgtype required");
-    return unless $fatal;
-    croak $self->error;
-  }
-  my $io;
-  eval { $io = $self->HANDLE_IO->open_input_file($spec, %opt) };
-  $@ && $self->error($@) && ($fatal ? croak $@ : return);
-  my $xs;
-  eval { $xs = $self->INPUT_XS->open_pres($io, @{$opt{filter_msgtype}}) };
-  $@ && $self->error($@) && ($fatal ? croak $@ : return);
-  $self->_init_input($spec, $io, $xs, %opt);
 }
 
 sub open_pcap {
@@ -241,6 +236,15 @@ sub eof {
 sub read {
   my $self = shift;
   my $xs = $self->_xs || return;
+  if (wantarray) {
+    my $io = $self->get_blocking_io;
+    my @msgs;
+    while (my $msg = $xs->read($io)) {
+      push(@msgs, $msg);
+    }
+    $self->eof(1);
+    return @msgs;
+  }
   my $msg = $xs->read($self->get_blocking_io);
   return($_ = $msg) if $msg;
   $self->eof(1);
@@ -306,7 +310,8 @@ like an IO handle. The following both work:
     # deal with $msg
   }
 
-Available options:
+Options, where applicable, are valid for the more specific open calls
+detailed further below. Available options:
 
 =over 4
 
@@ -334,6 +339,10 @@ Filter incoming messages based on the given group (nmsg only).
 
 Specify whether or not this input is blocking or not.
 
+=item rcvbuf
+
+Set the receive buffer size (socket only)
+
 =item bpf
 
 Specify a Berkley Packet Filter (pcap file/interface only)
@@ -348,15 +357,14 @@ Promiscuous mode (live interface only)
 
 =back
 
-=item open_nmsg($spec, %options)
+=item open_file($spec, %options)
 
-Opens an input in nmsg format, as specified by file name, file handle,
-socket specification, or socket handle.
+Opens an input in nmsg format, as specified by file name, file handle.
 
-=item open_pres($spec, %options)
+=item open_sock($spec, %options)
 
-Opens an input in presentation format, as specified by file name or file
-handle. The 'filter_vendor' and 'filter_msgtype' options are required.
+Opens an input socket as specified by "host/port" or socket handle.
+The host and port can also be passed as separate arguments.
 
 =item open_pcap($spec, %options)
 
@@ -365,7 +373,7 @@ Opens an input in pcap format, as specified by file name. The
 
 =item open_iface($spec, %options)
 
-Opens an input in pcap format, as specified by interface name The
+Opens an input in pcap format, as specified by interface name. The
 'filter_vendor' and 'filter_msgtype' options are required.
 
 =back
@@ -436,7 +444,7 @@ Matthew Sisk, E<lt>sisk@cert.orgE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2010-2011 by Carnegie Mellon University
+Copyright (C) 2010-2014 by Carnegie Mellon University
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, as published by

@@ -23,9 +23,9 @@ t/00_load.t
 t/11_sock.t
 t/12_types.t
 t/20_sniff.t
-t/70_isc_email.t
-t/70_isc_http.t
-t/70_isc_ipconn.t
+t/70_base_email.t
+t/70_base_http.t
+t/70_base_ipconn.t
 t/nmsgtest.pm
 t/dat/bogus.txt
 t/dat/test.nmsg
@@ -48,6 +48,7 @@ examples/other/README
 examples/other/count-nmsg-sources.pl
 examples/other/dnscurve_ch205.pl
 examples/other/nmsg_email_dir.pl
+examples/other/nxdomain_dga.pl
 examples/other/paypal_ch205.pl
 examples/other/process_ch205.pl
 examples/other/test_chaff.pl
