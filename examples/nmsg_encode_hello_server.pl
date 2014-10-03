@@ -3,9 +3,12 @@
 use strict;
 use warnings;
 
+# Note: If your output includes the message "<UNABLE TO DECODE>"
+# make sure you install the correct perl modules. For example:
+#     perl -MCPAN -e "install JSON"
+
 use Net::Nmsg::Input;
 use Data::Dumper;
-
 
 {
   package Encode;
@@ -70,17 +73,17 @@ sub process {
   print STDERR "\n\n";
 }
 
-my($addr, $port) = @_;
-if (! defined $addr) {
-  ($addr, $port) = ('127.0.0.1', 9430);
+if (@ARGV == 0) {
+  @ARGV = ('127.0.0.1', 9430);
 }
-else {
+if (@ARGV != 2) {
   print STDERR "Usage: $0 [<ADDR> <PORT>]\n";
   exit 1;
 }
 
-my $i = Net::Nmsg::Input->open_sock($addr, $port);
-print STDERR "listening on $addr/$port\n";
+# Note: IPv6 will work for the address if you have IO::Socket::INET6
+my $i = Net::Nmsg::Input->open_sock(@ARGV);
+print STDERR "listening on $ARGV[0]/$ARGV[1]\n";
 
 while (1) {
   process($i->read() || next);

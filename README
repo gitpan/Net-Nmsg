@@ -1,4 +1,4 @@
-Net-Nmsg version 0.09
+Net-Nmsg version 0.12
 =====================
 
 Net::Nmsg is a perl binding to libnmsg, the reference implementation of
@@ -14,7 +14,7 @@ documentation describes the format as:
   nmsgtool provides a command line interface to control the
   transmission, storage, creation, and conversion of NMSG payloads.
 
-This release was tested on NMSG version 0.7.3.
+This release was tested on NMSG version 0.9.1.
 The minimum version of NMSG required is 0.6.14.
 
 
@@ -26,6 +26,16 @@ To install this module type the following:
    make
    make test
    make install
+
+SOURCE CODE
+
+The official distribution lives here:
+
+https://tools.netsa.cert.org/confluence/display/tt/Net-Nmsg
+
+The package is also available via the CPAN:
+
+http://search.cpan.org/dist/Net-Nmsg/
 
 
 DEPENDENCIES

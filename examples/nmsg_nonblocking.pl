@@ -15,13 +15,15 @@ my $n = Net::Nmsg::Input->open($spec);
 
 my $s = IO::Select->new($n);
 
+my $count = 0;
+
 while (1) {
   if ($s->can_read(1)) {
-    while (my $m = $n->read) {
-      print "got a message\n";
-    }
+    my $m = $n->read;
+    ++$count;
+    printf "got nmsg %d: %s\n", $count, $m->headers_as_str();
   }
   else {
-    print "no messages!\n";
+    printf "time is now %s\n", scalar(gmtime());
   }
 }

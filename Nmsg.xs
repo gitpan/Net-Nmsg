@@ -114,10 +114,20 @@ static pthread_mutex_t presentation_lock = PTHREAD_MUTEX_INITIALIZER;
 SV *
 _xs_wrap_msg(pTHX_ nmsg_message_t m) {
     char class[100];
+    int32_t vid, mtype;
+    const char *vname, *mname;
     HV  *msg_stash;
     AV  *arr;
 
-    MSG_SUBCLASS(class, nmsg_message_get_vid(m), nmsg_message_get_msgtype(m));
+    vid = nmsg_message_get_vid(m);
+    vname = nmsg_msgmod_vid_to_vname(vid);
+    if (vname == NULL)
+        croak("unknown vendor id %d", vid);
+    mtype = nmsg_message_get_msgtype(m);
+    mname = nmsg_msgmod_msgtype_to_mname(vid, mtype);
+    if (mname == NULL)
+        croak("unknown vendor/message type %d/%d", vid, mtype);
+    sprintf(class, MSG_CLASS "::%s::%s", vname, mname);
     msg_stash = gv_stashpv(class, TRUE);
     arr = newAV();
     av_push(arr, sv_setref_pv(newSV(0), MSG_XS_CLASS, (char *)m));
@@ -832,14 +842,18 @@ nmsg_input_set_filter_source(THIS, value)
 	unsigned    value
 
 void
-nmsg_input_set_filter_group(THIS, value)
+_set_filter_group(THIS, value)
 	Net::Nmsg::XS::input    THIS
 	unsigned    value
+        CODE:
+        nmsg_input_set_filter_group(THIS, value);
 
 void
-nmsg_input_set_filter_operator(THIS, value)
+_set_filter_operator(THIS, value)
 	Net::Nmsg::XS::input    THIS
 	unsigned    value
+        CODE:
+        nmsg_input_set_filter_operator(THIS, value);
 
 void
 _set_filter_msgtype(THIS, vid, mid)
@@ -848,8 +862,6 @@ _set_filter_msgtype(THIS, vid, mid)
 	unsigned    mid
     CODE:
     nmsg_input_set_filter_msgtype(THIS, vid, mid);
-    mXPUSHu(vid);
-    mXPUSHu(mid);
 
 void
 nmsg_input_set_blocking_io(THIS, flag)

@@ -21,7 +21,7 @@ use Symbol ();
 use Data::Dumper;
 $Data::Dumper::Indent = 1;
 
-use Net::Nmsg::Util qw( :io :vendor :sniff :channel DEBUG );
+use Net::Nmsg::Util qw( :io :vendor :sniff :channel :alias DEBUG );
 use Net::Nmsg::Input;
 use Net::Nmsg::Output;
 
@@ -104,8 +104,9 @@ sub set_mirrored {
 
 sub set_filter_operator {
   my $self = shift;
-  $_->set_filter_operator(@_) foreach $self->inputs;
-  $self->_opt->{filter_operator} = shift;
+  my($id, $operator) = operator_lookup(@_);
+  $_->set_filter_operator($operator) foreach $self->inputs;
+  $self->_opt->{filter_operator} = $operator || $id;
 }
 
 sub set_filter_source {
@@ -116,8 +117,9 @@ sub set_filter_source {
 
 sub set_filter_group {
   my $self = shift;
-  $_->set_filter_group(@_) foreach $self->inputs;
-  $self->_opt->{filter_group} = shift;
+  my($id, $group) = group_lookup(@_);
+  $_->set_filter_group($group) foreach $self->inputs;
+  $self->_opt->{filter_group} = $group || $id;
 }
 
 sub set_filter_msgtype {
@@ -209,6 +211,18 @@ sub _add_input_io {
   my $self = shift;
   croak "not an input object $_[0]" unless $self->_is_input_io($_[0]);
   my($io, $cb) = $self->_wrap_io(@_);
+  if ($self->get_filter_operator) {
+    $io->set_filter_operator($self->get_filter_operator);
+  }
+  if ($self->get_filter_source) {
+    $io->set_filter_source($self->get_filter_source);
+  }
+  if ($self->get_filter_group) {
+    $io->set_filter_group($self->get_filter_group);
+  }
+  if ($self->get_filter_msgtype) {
+    $io->set_filter_msgtype($self->get_filter_msgtype);
+  }
   $self->_xs->add_input($io->_xs, $cb);
   push( @{ $self->_inputs }, $io );
 }
@@ -217,6 +231,9 @@ sub _add_output_io {
   my $self = shift;
   croak "not an output object $_[0]" unless $self->_is_output_io($_[0]);
   my($io, $cb) = $self->_wrap_io(@_);
+  if ($self->get_filter_msgtype) {
+    $io->set_filter_msgtype($self->get_filter_msgtype);
+  }
   $self->_xs->add_output($io->_xs, $cb);
   push( @{ $self->_outputs }, $io );
 }

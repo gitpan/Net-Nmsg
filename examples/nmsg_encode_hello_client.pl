@@ -8,13 +8,24 @@ use Net::Nmsg::Msg;
 
 use Time::HiRes;
 
-if (@ARGV && @ARGV != 2) {
-  print STDERR "Usage: $0 [<ADDR> <PORT>]\n";
+my $o;
+my $b = 0;
+if (! @ARGV) {
+  @ARGV = ('127.0.0.1', 9430);
+}
+if ($ARGV[0] eq '-b') {
+  $b = 1;
+  shift @ARGV;
+}
+if (@ARGV == 2) {
+  # Note: IPv6 will work if IO::Socket::INET6 is installed
+  $o = Net::Nmsg::Output->open_sock(@ARGV, broadcast => $b);
+  print STDERR "sending on @ARGV (broadcast = $b)\n";
+}
+else {
+  print STDERR "Usage: $0 [[-b] <ADDR> <PORT>]\n";
   exit 1;
 }
-
-my $o = @ARGV ? Net::Nmsg::Output->open_sock(@ARGV) :
-                Net::Nmsg::Output->open_sock('127.0.0.1', 9430);
 
 my $m = Net::Nmsg::Msg::base::encode->new();
 

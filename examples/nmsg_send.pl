@@ -6,7 +6,7 @@ use warnings;
 use Net::Nmsg::Output;
 use Net::Nmsg::Msg;
 
-my $dest = '127.0.0.1/8430';
+my $dest = '127.0.0.1/9430';
 
 my %template = (
   srcip   => '127.0.0.1',

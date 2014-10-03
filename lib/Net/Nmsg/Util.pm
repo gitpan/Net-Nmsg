@@ -22,8 +22,9 @@ require Exporter;
 
 use base qw( Exporter );
 
-# load xs
-use Net::Nmsg qw( DEBUG );
+# load xs (export stopped working)
+#use Net::Nmsg qw( DEBUG );
+use Net::Nmsg;
 
 use IO::File;
 
@@ -297,7 +298,8 @@ sub interface_descriptions {
 ### alias
 
 sub _alias_lookup {
-  my $type = shift || croak "alias type required";
+  @_ || croak "alias type required";
+  my $type = shift;
   my($id, $alias);
   if (my $v = shift) {
     if ($v =~ /^\d+$/) {

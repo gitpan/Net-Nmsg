@@ -41,10 +41,10 @@ my $shutdown;
 
 $SIG{TERM} = $SIG{INT} = sub { ++$shutdown };
 
-open(P, ">&STDOUT") || die "oops on open : $!";
+#open(P, ">&STDOUT") || die "oops on open : $!";
 
-#open(P, '|', $nmsgtool) or die "problem piping to nmsgtool : $!";
-#select(P); $|++;
+open(P, '|', $nmsgtool) or die "problem piping to nmsgtool : $!";
+select(P); $|++;
 
 while (1) {
   if ($shutdown) {

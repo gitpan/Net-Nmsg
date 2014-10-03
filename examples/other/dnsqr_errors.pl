@@ -9,7 +9,7 @@ use warnings;
 use Net::Nmsg::Input;
 use Net::WDNS qw(:func);
 
-my $file = shift or die "ch202 filename required"
+my $file = shift or die "ch202 filename required";
 
 my $i = Net::Nmsg::Input->open($file);
 while (my $m = <$i>) {

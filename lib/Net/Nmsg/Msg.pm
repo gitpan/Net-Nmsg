@@ -115,6 +115,9 @@ sub source {
     $self->[DIRTY] ||= $self->_unpack;
     $self->[SRC] = shift;
   }
+  else {
+    $self->_unpack;
+  }
   $self->[SRC];
 }
 
@@ -124,6 +127,9 @@ sub operator {
     $self->[DIRTY] ||= $self->_unpack;
     my($k, $v) = operator_lookup(shift);
     $self->[OPR] = $k;
+  }
+  else {
+    $self->_unpack;
   }
   my($k, $v) = operator_lookup($self->[OPR]);
   $v || '<UNKNOWN>';
@@ -136,6 +142,9 @@ sub group {
     my($k, $v) = group_lookup(shift);
     $self->[GRP] = $k;
   }
+  else {
+    $self->_unpack;
+  }
   my($k, $v) = group_lookup($self->[GRP]);
   $v || '<UNKNOWN>';
 }
@@ -146,6 +155,9 @@ sub time {
     $self->[DIRTY] ||= $self->_unpack;
     $self->[SEC]  = shift || 0;
     $self->[NSEC] = shift || 0;
+  }
+  else {
+    $self->_unpack;
   }
   return($self->[SEC], $self->[NSEC]);
 }
@@ -451,7 +463,7 @@ Net::Nmsg::Msg - Perl interface for messages from the NMSG library
   # methods specific to the fields for that type. For example:
 
   my $o = Net::Nmsg::Output->open('127.0.0.1/9430');
-  my $m = Net::Nmsg::Msg::ISC::ipconn->new();
+  my $m = Net::Nmsg::Msg::base::ipconn->new();
   for my $i (0 .. 99) {
     $m->set_srcip("127.0.0.$i");
     $m->set_dstip("127.1.0.$i");
@@ -582,7 +594,7 @@ perl types for them:
 
 =head1 SEE ALSO
 
-L<Net::Nmsg::IO>, L<Net::Nmsg::Input>, L<Net::Nmsg::Output>, L<nmsgtool(1)>
+L<Net::Nmsg::IO>, L<Net::Nmsg::Input>, L<Net::Nmsg::Output>, L<Net::WDNS>, L<nmsgtool(1)>
 
 =head1 AUTHOR
 

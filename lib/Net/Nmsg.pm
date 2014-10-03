@@ -29,7 +29,7 @@ use base qw( Exporter DynaLoader );
 sub dl_load_flags { 0x01 } # global option
 
 BEGIN {
-  $VERSION = '0.10';
+  $VERSION = '0.12';
   bootstrap Net::Nmsg $VERSION;
 }
 
@@ -50,6 +50,9 @@ package Net::Nmsg::Util;
 use strict;
 use warnings;
 use Carp;
+
+# export doesn't work in Util.pm suddenly...hmm.
+*DEBUG = *Net::Nmsg::DEBUG;
 
 sub _vendor_lookup {
   my $v = shift;
@@ -137,6 +140,8 @@ use warnings;
 
 use base qw( Net::Nmsg::XS::export_xs );
 
+use Net::Nmsg::Util;
+
 sub set_filter_msgtype {
   my $self = shift;
   my($vid, $mid, $vname, $mname) = Net::Nmsg::Util::_msgtype_lookup(@_);
@@ -153,6 +158,22 @@ use warnings;
 use Carp;
 
 use base qw( Net::Nmsg::XS::base_xs );
+
+use Net::Nmsg::Util;
+
+sub set_filter_group {
+  my $self = shift;
+  my($id, $alias) = Net::Nmsg::Util::group_lookup(@_);
+  $self->_set_filter_group($id);
+  return $alias || $id;
+}
+
+sub set_filter_operator {
+  my $self = shift;
+  my($id, $alias) = Net::Nmsg::Util::operator_lookup(@_);
+  $self->_set_filter_operator($id);
+  return $alias || $id;
+}
 
 sub open_pcap {
   my $class = shift;
@@ -354,7 +375,7 @@ are present on the host system.
 
 =head1 SEE ALSO
 
-L<Net::Nmsg::IO>, L<Net::Nmsg::Input>, L<Net::Nmsg::Output>, L<nmsgtool(1)>
+L<Net::Nmsg::IO>, L<Net::Nmsg::Input>, L<Net::Nmsg::Output>, L<Net::WDNS>, L<nmsgtool(1)>
 
 The nmsg library can be downloaded from: ftp://ftp.isc.org/isc/nmsg/
 

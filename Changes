@@ -1,5 +1,15 @@
 Revision history for Net::Nmsg
 
+0.12  Fri Oct  3 16:17:23 EDT 2014
+    - fixed operator/group accessors for IO when done prior to
+      adding inputs/outputs
+    - added some sanity checks for unknown vendor id and message type
+    - fixed presentation format headers
+    - revamped examples based on SIE feedback
+
+0.11  Thu Mar 20 09:42:36 EDT 2014
+    - fixed some examples
+
 0.10  Wed Mar 19 14:12:45 EDT 2014
     - migrated vendor 'ISC' to 'base' (ISC deprecated)
     - fixed broadcast option for output sockets

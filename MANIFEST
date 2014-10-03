@@ -46,10 +46,11 @@ examples/nmsg_sock_dump.pl
 
 examples/other/README
 examples/other/count-nmsg-sources.pl
-examples/other/dnscurve_ch205.pl
+examples/other/dnscurve_ch202.pl
 examples/other/nmsg_email_dir.pl
-examples/other/nxdomain_dga.pl
-examples/other/paypal_ch205.pl
-examples/other/process_ch205.pl
+examples/other/dnsqr_errors.pl
+examples/other/paypal_ch202.pl
+examples/other/process_ch204.pl
 examples/other/test_chaff.pl
-META.yml                                 Module meta-data (added by MakeMaker)
+META.yml                                 Module YAML meta-data (added by MakeMaker)
+META.json                                Module JSON meta-data (added by MakeMaker)
